@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"io"
 	"strings"
-	"time"
 )
 
 const maxDimension = 4
@@ -87,10 +86,8 @@ func allRoomsConnected(roomClusters []int) bool {
 	return true
 }
 
-func Create(width, height int) *Field {
+func Create(random *rand.Rand, width, height int) *Field {
 	const dimNum = 2
-
-	rand.Seed(time.Now().UnixNano())
 
 	f := &Field{
 		rooms: make([]Room, width*height),
@@ -108,8 +105,9 @@ func Create(width, height int) *Field {
 		roomCluster := 0
 		nextRoomCluster := 0
 		for {
-			dim = rand.Intn(dimNum)
-			roomIndex = rand.Intn(len(f.rooms))
+			r := random.Intn(len(f.rooms) * dimNum)
+			dim = r % dimNum
+			roomIndex = r / dimNum
 
 			room := f.rooms[roomIndex]
 			if room.openWalls[dim] {
