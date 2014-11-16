@@ -6,5 +6,5 @@ import (
 )
 
 func BenchmarkCreate(b *testing.B) {
-	field.Create(300, 300)
+	field.Create(1000, 1000)
 }

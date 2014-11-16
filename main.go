@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	f := field.Create(100, 100)
+	f := field.Create(40, 20)
 	f.Write(os.Stdout)
 }

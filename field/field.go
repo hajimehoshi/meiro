@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
+const maxDimension = 4
+
 type Room struct {
-	openWalls []bool
+	openWalls [maxDimension]bool
 }
 
 type Field struct {
@@ -16,9 +18,9 @@ type Field struct {
 	sizes []int
 }
 
-func (f *Field) roomCoord(index int) []int {
-	coord := make([]int, len(f.sizes))
-	for i := 0; i < len(coord); i++ {
+func (f *Field) roomCoord(index int) [maxDimension]int {
+	coord := [maxDimension]int{}
+	for i := 0; i < len(f.sizes); i++ {
 		c := index
 		for j := i - 1; 0 <= j; j-- {
 			c /= f.sizes[j]
@@ -29,7 +31,7 @@ func (f *Field) roomCoord(index int) []int {
 	return coord
 }
 
-func (f *Field) roomIndex(coord []int) int {
+func (f *Field) roomIndex(coord [maxDimension]int) int {
 	index := 0
 	for i := len(f.sizes) - 1; 0 <= i; i-- {
 		index += coord[i]
@@ -45,7 +47,7 @@ func (f *Field) Write(writer io.Writer) {
 		line1 := ""
 		line2 := ""
 		for i := 0; i < f.sizes[0]; i++ {
-			room := f.rooms[f.roomIndex([]int{i, j})]
+			room := f.rooms[f.roomIndex([maxDimension]int{i, j})]
 			line1 += "+"
 			if room.openWalls[1] {
 				line1 += "  "
@@ -94,11 +96,6 @@ func Create(width, height int) *Field {
 		rooms: make([]Room, width*height),
 		sizes: []int{width, height},
 	}
-	for i := 0; i < len(f.rooms); i++ {
-		f.rooms[i] = Room{
-			openWalls: make([]bool, dimNum),
-		}
-	}
 
 	roomClusters := make([]int, len(f.rooms))
 	for i := 0; i < len(roomClusters); i++ {
@@ -119,8 +116,8 @@ func Create(width, height int) *Field {
 				continue
 			}
 			roomCoord := f.roomCoord(roomIndex)
-			nextRoomCoord := make([]int, len(roomCoord))
-			copy(nextRoomCoord, roomCoord)
+			nextRoomCoord := [maxDimension]int{}
+			copy(nextRoomCoord[:], roomCoord[:])
 			nextRoomCoord[dim] -= 1
 			if nextRoomCoord[dim] < 0 {
 				continue
@@ -134,7 +131,7 @@ func Create(width, height int) *Field {
 			break
 		}
 
-		room := f.rooms[roomIndex]
+		room := &f.rooms[roomIndex]
 		room.openWalls[dim] = true
 		if roomCluster < nextRoomCluster {
 			roomClusters[nextRoomCluster] = roomCluster
