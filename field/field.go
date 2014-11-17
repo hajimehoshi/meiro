@@ -14,31 +14,7 @@ type Room struct {
 
 type Field struct {
 	rooms []Room
-	sizes []int
-}
-
-func (f *Field) roomCoord(index int) [maxDimension]int {
-	coord := [maxDimension]int{}
-	for i := 0; i < len(f.sizes); i++ {
-		c := index
-		for j := i - 1; 0 <= j; j-- {
-			c /= f.sizes[j]
-		}
-		c %= f.sizes[i]
-		coord[i] = c
-	}
-	return coord
-}
-
-func (f *Field) roomIndex(coord [maxDimension]int) int {
-	index := 0
-	for i := len(f.sizes) - 1; 0 <= i; i-- {
-		index += coord[i]
-		if 0 <= i-1 {
-			index *= f.sizes[i-1]
-		}
-	}
-	return index
+	sizes [maxDimension]int
 }
 
 func (f *Field) Write(writer io.Writer) {
@@ -46,7 +22,7 @@ func (f *Field) Write(writer io.Writer) {
 		line1 := ""
 		line2 := ""
 		for i := 0; i < f.sizes[0]; i++ {
-			room := f.rooms[f.roomIndex([maxDimension]int{i, j})]
+			room := f.rooms[roomIndex(f.sizes, [maxDimension]int{i, j})]
 			line1 += "+"
 			if room.openWalls[1] {
 				line1 += "  "
@@ -71,6 +47,30 @@ func (f *Field) Write(writer io.Writer) {
 	io.WriteString(writer, line)
 }
 
+func roomCoord(sizes [maxDimension]int, index int) [maxDimension]int {
+	coord := [maxDimension]int{}
+	for i := 0; i < len(sizes); i++ {
+		c := index
+		for j := i - 1; 0 <= j; j-- {
+			c /= sizes[j]
+		}
+		c %= sizes[i]
+		coord[i] = c
+	}
+	return coord
+}
+
+func roomIndex(sizes [maxDimension]int, coord [maxDimension]int) int {
+	index := 0
+	for i := len(sizes) - 1; 0 <= i; i-- {
+		index += coord[i]
+		if 0 <= i-1 {
+			index *= sizes[i-1]
+		}
+	}
+	return index
+}
+
 func cluster(roomClusters []int, i int) int {
 	for ; i != roomClusters[i]; i = roomClusters[i] {
 	}
@@ -91,7 +91,7 @@ func Create(random *rand.Rand, width, height int) *Field {
 
 	f := &Field{
 		rooms: make([]Room, width*height),
-		sizes: []int{width, height},
+		sizes: [maxDimension]int{width, height, 1, 1},
 	}
 
 	roomClusters := make([]int, len(f.rooms))
@@ -101,40 +101,40 @@ func Create(random *rand.Rand, width, height int) *Field {
 
 	for !allRoomsConnected(roomClusters) {
 		dim := 0
-		roomIndex := 0
-		roomCluster := 0
+		rIndex := 0
+		rCluster := 0
 		nextRoomCluster := 0
 		for {
 			r := random.Intn(len(f.rooms) * dimNum)
 			dim = r % dimNum
-			roomIndex = r / dimNum
+			rIndex = r / dimNum
 
-			room := f.rooms[roomIndex]
+			room := f.rooms[rIndex]
 			if room.openWalls[dim] {
 				continue
 			}
-			roomCoord := f.roomCoord(roomIndex)
+			roomCoord := roomCoord(f.sizes, rIndex)
 			nextRoomCoord := [maxDimension]int{}
 			copy(nextRoomCoord[:], roomCoord[:])
 			nextRoomCoord[dim] -= 1
 			if nextRoomCoord[dim] < 0 {
 				continue
 			}
-			nextRoomIndex := f.roomIndex(nextRoomCoord)
-			roomCluster = cluster(roomClusters, roomIndex)
+			nextRoomIndex := roomIndex(f.sizes, nextRoomCoord)
+			rCluster = cluster(roomClusters, rIndex)
 			nextRoomCluster = cluster(roomClusters, nextRoomIndex)
-			if roomCluster == nextRoomCluster {
+			if rCluster == nextRoomCluster {
 				continue
 			}
 			break
 		}
 
-		room := &f.rooms[roomIndex]
+		room := &f.rooms[rIndex]
 		room.openWalls[dim] = true
-		if roomCluster < nextRoomCluster {
-			roomClusters[nextRoomCluster] = roomCluster
+		if rCluster < nextRoomCluster {
+			roomClusters[nextRoomCluster] = rCluster
 		} else {
-			roomClusters[roomCluster] = nextRoomCluster
+			roomClusters[rCluster] = nextRoomCluster
 		}
 	}
 
