@@ -1,10 +1,8 @@
 package field
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
-	"strconv"
 	"strings"
 )
 
@@ -47,54 +45,6 @@ func (f *Field) Write(writer io.Writer) {
 	io.WriteString(writer, line)
 }
 
-const svgRoomSize = 8
-
-var svgTemplate = `
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 {{width}} {{height}}" background-color="#fff">
-<g transform="translate({{offsetX}}, {{offsetY}})" stroke="black" stroke-width="1" stroke-linecap="round">
-{{lines}}
-</g>
-</svg>
-`[1:]
-
-func (f *Field) WriteSVG(writer io.Writer) {
-	paddingX := svgRoomSize
-	paddingY := svgRoomSize
-	svg := svgTemplate
-	svg = strings.Replace(svg, "{{width}}", strconv.Itoa(f.sizes[0]*svgRoomSize+paddingX*2), -1)
-	svg = strings.Replace(svg, "{{height}}", strconv.Itoa(f.sizes[1]*svgRoomSize+paddingY*2), -1)
-	svg = strings.Replace(svg, "{{offsetX}}", strconv.Itoa(paddingX), -1)
-	svg = strings.Replace(svg, "{{offsetY}}", strconv.Itoa(paddingY), -1)
-	lines := []string{}
-	for i, room := range f.rooms {
-		coord := roomCoord(f.sizes, i)
-		x1 := coord[0] * svgRoomSize
-		y1 := coord[1] * svgRoomSize
-		if !room.openWalls[0] {
-			x2 := coord[0] * svgRoomSize
-			y2 := (coord[1] + 1) * svgRoomSize
-			lines = append(lines,
-				fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2))
-		}
-		if !room.openWalls[1] {
-			x2 := (coord[0] + 1) * svgRoomSize
-			y2 := coord[1] * svgRoomSize
-			lines = append(lines,
-				fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2))
-		}
-	}
-	width := f.sizes[0] * svgRoomSize
-	height := f.sizes[1] * svgRoomSize
-	lines = append(lines, fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`,
-		0, height, width, height))
-	lines = append(lines, fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`,
-		width, 0, width, height))
-	svg = strings.Replace(svg, "{{lines}}", strings.Join(lines, "\n"), -1)
-	io.WriteString(writer, svg)
-}
-
 func roomCoord(sizes [maxDimension]int, index int) [maxDimension]int {
 	coord := [maxDimension]int{}
 	for i := 0; i < len(sizes); i++ {
@@ -135,6 +85,7 @@ func allRoomsConnected(roomClusters []int) bool {
 }
 
 func Create(random *rand.Rand, width, height int) *Field {
+	// TODO: Remove this
 	const dimNum = 2
 
 	f := &Field{
