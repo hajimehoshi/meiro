@@ -1,9 +1,7 @@
 package field
 
 import (
-	"io"
 	"math/rand"
-	"strings"
 )
 
 const maxDimension = 4
@@ -15,34 +13,6 @@ type Room struct {
 type Field struct {
 	rooms []Room
 	sizes [maxDimension]int
-}
-
-func (f *Field) Write(writer io.Writer) {
-	for j := 0; j < f.sizes[1]; j++ {
-		line1 := ""
-		line2 := ""
-		for i := 0; i < f.sizes[0]; i++ {
-			room := f.rooms[roomIndex(f.sizes, [maxDimension]int{i, j})]
-			line1 += "+"
-			if room.openWalls[1] {
-				line1 += "  "
-			} else {
-				line1 += "--"
-			}
-			if room.openWalls[0] {
-				line2 += " "
-			} else {
-				line2 += "|"
-			}
-			line2 += "  "
-		}
-		line1 += "+\n"
-		line2 += "|\n"
-		io.WriteString(writer, line1)
-		io.WriteString(writer, line2)
-	}
-	line := strings.Repeat("+--", f.sizes[0]) + "+\n"
-	io.WriteString(writer, line)
 }
 
 func roomCoord(sizes [maxDimension]int, index int) [maxDimension]int {
@@ -84,13 +54,10 @@ func allRoomsConnected(roomClusters []int) bool {
 	return true
 }
 
-func Create(random *rand.Rand, width, height int) *Field {
-	// TODO: Remove this
-	const dimNum = 2
-
+func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	f := &Field{
-		rooms: make([]Room, width*height),
-		sizes: [maxDimension]int{width, height, 1, 1},
+		rooms: make([]Room, size1*size2*size3*size4),
+		sizes: [maxDimension]int{size1, size2, size3, size4},
 	}
 
 	roomClusters := make([]int, len(f.rooms))
@@ -104,9 +71,9 @@ func Create(random *rand.Rand, width, height int) *Field {
 		rCluster := 0
 		nextRoomCluster := 0
 		for {
-			r := random.Intn(len(f.rooms) * dimNum)
-			dim = r % dimNum
-			rIndex = r / dimNum
+			r := random.Intn(len(f.rooms) * maxDimension)
+			dim = r % maxDimension
+			rIndex = r / maxDimension
 
 			room := f.rooms[rIndex]
 			if room.openWalls[dim] {

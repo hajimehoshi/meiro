@@ -8,5 +8,5 @@ import (
 
 func BenchmarkCreate(b *testing.B) {
 	random := rand.New(rand.NewSource(0))
-	field.Create(random, 1000, 1000)
+	field.Create(random, 100, 100, 100, 2)
 }
