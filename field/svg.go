@@ -15,6 +15,10 @@ func svgLine(x1, y1, x2, y2 int) string {
 	return fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2)
 }
 
+func svgDashedLine(x1, y1, x2, y2 int) string {
+	return fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-dasharray="2" stroke-opacity="0.3" />`, x1, y1, x2, y2)
+}
+
 func svgArrow() string {
 	lines := []string{}
 	cx := svgRoomSize / 2
@@ -25,15 +29,15 @@ func svgArrow() string {
 	return strings.Join(lines, "\n")
 }
 
-func (f *Field) svgRoomWidth() int {
+func (f *Field) svgFloorWidth() int {
 	return f.sizes[0]*svgRoomSize + 2*paddingX
 }
 
-func (f *Field) svgRoomHeight() int {
+func (f *Field) svgFloorHeight() int {
 	return f.sizes[1]*svgRoomSize + 2*paddingY
 }
 
-func (f *Field) svgRoom(dim3, dim4 int) string {
+func (f *Field) svgFloor(dim3, dim4 int) string {
 	var tmpl = `
 <g transform="translate({{offsetX}}, {{offsetY}})">
   {{lines}}
@@ -46,7 +50,7 @@ func (f *Field) svgRoom(dim3, dim4 int) string {
 
 	for dim2 := 0; dim2 < f.sizes[1]; dim2++ {
 		for dim1 := 0; dim1 < f.sizes[0]; dim1++ {
-			coord := [maxDimension]int{dim1, dim2, dim3, dim4}
+			coord := Position{dim1, dim2, dim3, dim4}
 			room := f.rooms[roomIndex(f.sizes, coord)]
 			x1 := dim1 * svgRoomSize
 			y1 := dim2 * svgRoomSize
@@ -105,8 +109,8 @@ func (f *Field) svgRoom(dim3, dim4 int) string {
 	lines = append(lines, svgLine(0, height, width, height))
 	lines = append(lines, svgLine(width, 0, width, height))
 
-	offsetX := dim4*f.svgRoomWidth() + paddingX
-	offsetY := dim3*f.svgRoomHeight() + paddingY
+	offsetX := dim4*f.svgFloorWidth() + paddingX
+	offsetY := dim3*f.svgFloorHeight() + paddingY
 
 	svg := tmpl
 	svg = strings.Replace(svg, "{{offsetX}}", strconv.Itoa(offsetX), -1)
@@ -127,24 +131,58 @@ func (f *Field) WriteSVG(writer io.Writer) {
     </symbol>
   </defs>
   <g stroke="black" stroke-width="1" stroke-linecap="round">
-    {{rooms}}
+    {{floors}}
+  </g>
+  <g stroke="red" stroke-width="1" stroke-linecap="round">
+    {{shortestPath}}
   </g>
 </svg>
 `[1:]
 
-	width := f.svgRoomWidth() * f.sizes[3]
-	height := f.svgRoomHeight() * f.sizes[2]
+	width := f.svgFloorWidth() * f.sizes[3]
+	height := f.svgFloorHeight() * f.sizes[2]
 
 	svg := tmpl
 	svg = strings.Replace(svg, "{{width}}", strconv.Itoa(width), -1)
 	svg = strings.Replace(svg, "{{height}}", strconv.Itoa(height), -1)
 	svg = strings.Replace(svg, "{{arrow}}", svgArrow(), -1)
-	rooms := []string{}
+	floors := []string{}
 	for dim4 := 0; dim4 < f.sizes[3]; dim4++ {
 		for dim3 := 0; dim3 < f.sizes[2]; dim3++ {
-			rooms = append(rooms, f.svgRoom(dim3, dim4))
+			floors = append(floors, f.svgFloor(dim3, dim4))
 		}
 	}
-	svg = strings.Replace(svg, "{{rooms}}", strings.Join(rooms, "\n"), -1)
+	svg = strings.Replace(svg, "{{floors}}", strings.Join(floors, "\n"), -1)
+
+	shortestPath := []string{}
+	for position := f.endPosition; position != f.startPosition; {
+		nextPosition := Position{}
+		index := roomIndex(f.sizes, position)
+		for _, nextIndex := range f.nextRooms(index) {
+			if f.costs[nextIndex] != f.costs[index] - 1 {
+				continue
+			}
+			nextPosition = roomPosition(f.sizes, nextIndex)
+			break
+		}
+		x1 := position[3] * f.svgFloorWidth() + position[0] * svgRoomSize +
+			svgRoomSize / 2 + paddingX
+		y1 := position[2] * f.svgFloorHeight() + position[1] * svgRoomSize +
+			svgRoomSize / 2 + paddingY
+		x2 := nextPosition[3] * f.svgFloorWidth() + nextPosition[0] * svgRoomSize +
+			svgRoomSize / 2 + paddingX
+		y2 := nextPosition[2] * f.svgFloorHeight() + nextPosition[1] * svgRoomSize +
+			svgRoomSize / 2 + paddingY
+		line := ""
+		if position[2] == nextPosition[2] && position[3] == nextPosition[3] {
+			line = svgLine(x1, y1, x2, y2)
+		} else {
+			line = svgDashedLine(x1, y1, x2, y2)
+		}
+		shortestPath = append(shortestPath, line)
+		position = nextPosition
+	}
+	svg = strings.Replace(svg, "{{shortestPath}}", strings.Join(shortestPath, "\n"), -1)
+
 	io.WriteString(writer, svg)
 }
