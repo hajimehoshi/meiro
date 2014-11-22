@@ -148,6 +148,72 @@ func (f *Field) calcCosts() {
 	}
 }
 
+func (f *Field) deadEnds() []int {
+	deadEnds := []int{}
+	for i, _ := range f.rooms {
+		if len(f.nextConnectedRooms(i)) == 1 {
+			deadEnds = append(deadEnds, i)
+		}
+	}
+	return deadEnds
+}
+
+func (f *Field) isSmallDeadEnd(index int) bool {
+	nextConnectedRooms := f.nextConnectedRooms(index)
+	if len(nextConnectedRooms) != 1 {
+		return false
+	}
+	if len(f.nextConnectedRooms(nextConnectedRooms[0])) == 2 {
+		return false
+	}
+	return true
+}
+
+func (f *Field) reduceDeadEnds(random *rand.Rand) {
+	for _, deadEnd := range f.deadEnds() {
+		if len(f.nextConnectedRooms(deadEnd)) != 1 {
+			continue
+		}
+		smallEnd := f.isSmallDeadEnd(deadEnd)
+		for _, nextRoom := range f.nextRooms(deadEnd) {
+			if len(f.nextConnectedRooms(nextRoom)) != 1 {
+				continue
+			}
+			nextSmallEnd := f.isSmallDeadEnd(nextRoom)
+			if !smallEnd && !nextSmallEnd {
+				continue
+			}
+			deadEndToRemove := deadEnd
+			if smallEnd && nextSmallEnd {
+				if random.Intn(2) == 0 {
+					deadEndToRemove = nextRoom
+				}
+			} else if nextSmallEnd {
+				deadEndToRemove = nextRoom
+			}
+
+			// Block all walls
+			f.rooms[deadEndToRemove].openWalls = [maxDimension]bool{}
+			position := roomPosition(f.sizes, deadEndToRemove)
+			for i := 0; i < maxDimension; i++ {
+				position := position
+				position[i]++
+				if f.sizes[i] <= position[i] {
+					continue
+				}
+				f.rooms[roomIndex(f.sizes, position)].openWalls[i] = false
+			}
+
+			deadEndToExtend := deadEnd
+			if deadEndToRemove == deadEnd {
+				deadEndToExtend = nextRoom
+			}
+			f.connectRooms(deadEndToExtend, deadEndToRemove)
+			break
+		}
+	}
+}
+
 func (f *Field) shortestPath() []int {
 	shortestPath := []int{}
 	position := f.endPosition
@@ -161,16 +227,6 @@ func (f *Field) shortestPath() []int {
 		position = roomPosition(f.sizes, nextIndex)
 	}
 	return shortestPath
-}
-
-func (f *Field) deadEnds() []int {
-	deadEnds := []int{}
-	for i, _ := range f.rooms {
-		if len(f.nextConnectedRooms(i)) == 1 {
-			deadEnds = append(deadEnds, i)
-		}
-	}
-	return deadEnds
 }
 
 func (f *Field) connectRooms(index1, index2 int) bool {
@@ -266,7 +322,7 @@ func (f *Field) removeDeadEnds(random *rand.Rand) {
 			a := costToShortestPath[deadEnd]
 			b := costToShortestPath[nextRoom]
 			c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
-			if c <= abs(b - a) && 10 <= a && 10 <= b && 20 < abs(a - b) {
+			if c <= (a + b) / 4 {
 				f.connectRooms(deadEnd, nextRoom);
 				break
 			}
@@ -326,8 +382,17 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 		}
 	}
 
+	deadEndsNum := len(f.deadEnds())
+	for {
+		f.reduceDeadEnds(random)
+		currentDeadEndNum := len(f.deadEnds())
+		if deadEndsNum == currentDeadEndNum {
+			break
+		}
+		deadEndsNum = currentDeadEndNum
+	}
 	f.calcCosts()
-	//f.removeDeadEnds(random)
+	f.removeDeadEnds(random)
 
 	return f
 }
