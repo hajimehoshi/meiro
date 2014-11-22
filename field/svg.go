@@ -154,17 +154,13 @@ func (f *Field) WriteSVG(writer io.Writer) {
 	}
 	svg = strings.Replace(svg, "{{floors}}", strings.Join(floors, "\n"), -1)
 
-	shortestPath := []string{}
-	for position := f.endPosition; position != f.startPosition; {
-		nextPosition := Position{}
-		index := roomIndex(f.sizes, position)
-		for _, nextIndex := range f.nextRooms(index) {
-			if f.costs[nextIndex] != f.costs[index] - 1 {
-				continue
-			}
-			nextPosition = roomPosition(f.sizes, nextIndex)
-			break
-		}
+	shortestPathLines := []string{}
+	shortestPath := f.shortestPath()
+	for i := 0; i < len(shortestPath) - 1; i++ {
+		index := shortestPath[i]
+		nextIndex := shortestPath[i+1]
+		position := roomPosition(f.sizes, index)
+		nextPosition := roomPosition(f.sizes, nextIndex)
 		x1 := position[3] * f.svgFloorWidth() + position[0] * svgRoomSize +
 			svgRoomSize / 2 + paddingX
 		y1 := position[2] * f.svgFloorHeight() + position[1] * svgRoomSize +
@@ -179,10 +175,10 @@ func (f *Field) WriteSVG(writer io.Writer) {
 		} else {
 			line = svgDashedLine(x1, y1, x2, y2)
 		}
-		shortestPath = append(shortestPath, line)
-		position = nextPosition
+		shortestPathLines = append(shortestPathLines, line)
 	}
-	svg = strings.Replace(svg, "{{shortestPath}}", strings.Join(shortestPath, "\n"), -1)
+
+	svg = strings.Replace(svg, "{{shortestPath}}", strings.Join(shortestPathLines, "\n"), -1)
 
 	io.WriteString(writer, svg)
 }
