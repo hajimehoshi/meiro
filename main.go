@@ -9,6 +9,7 @@ import (
 
 func main() {
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	f := field.Create(random, 4, 4, 4, 4)
+	//f := field.Create(random, 10, 10, 2, 7)
+	f := field.Create(random, 150, 100, 1, 1)
 	f.WriteSVG(os.Stdout)
 }
