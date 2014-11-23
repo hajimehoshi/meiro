@@ -3,6 +3,7 @@ package field
 import (
 	"fmt"
 	"io"
+	"strconv"
 )
 
 const svgRoomSize = 8
@@ -10,17 +11,27 @@ const paddingX = svgRoomSize
 const paddingY = svgRoomSize
 
 func writeSvgLine(writer io.Writer, x1, y1, x2, y2 int) {
-	fmt.Fprintf(writer, `<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2)
-	io.WriteString(writer, "\n")
+	io.WriteString(writer, `<line x1="`)
+	io.WriteString(writer, strconv.Itoa(x1))
+	io.WriteString(writer, `" y1="`)
+	io.WriteString(writer, strconv.Itoa(y1))
+	io.WriteString(writer, `" x2="`)
+	io.WriteString(writer, strconv.Itoa(x2))
+	io.WriteString(writer, `" y2="`)
+	io.WriteString(writer, strconv.Itoa(y2))
+	io.WriteString(writer, `" />` + "\n")
 }
 
 func writeSvgDashedLine(writer io.Writer, x1, y1, x2, y2 int) {
-	fmt.Fprintf(writer, `<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-dasharray="2" stroke-opacity="0.3" />`, x1, y1, x2, y2)
-	io.WriteString(writer, "\n")
-}
-
-func svgLine(x1, y1, x2, y2 int) string {
-	return fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2)
+	io.WriteString(writer, `<line x1="`)
+	io.WriteString(writer, strconv.Itoa(x1))
+	io.WriteString(writer, `" y1="`)
+	io.WriteString(writer, strconv.Itoa(y1))
+	io.WriteString(writer, `" x2="`)
+	io.WriteString(writer, strconv.Itoa(x2))
+	io.WriteString(writer, `" y2="`)
+	io.WriteString(writer, strconv.Itoa(y2))
+	io.WriteString(writer, `" stroke-dasharray="2" stroke-opacity="0.3" />` + "\n")
 }
 
 func writeSvgArrows(writer io.Writer) {
@@ -39,12 +50,28 @@ func (f *Field) svgFloorHeight() int {
 	return f.sizes[1]*svgRoomSize + 2*paddingY
 }
 
+func writeSvgUseArrow(writer io.Writer, x1, y1 int, rotate int) {
+	const cx = svgRoomSize / 2
+	const cy = svgRoomSize / 2
+
+	io.WriteString(writer, `<use xlink:href="#arrow" transform="translate(`)
+	io.WriteString(writer, strconv.Itoa(x1))
+	io.WriteString(writer, `, `)
+	io.WriteString(writer, strconv.Itoa(y1))
+	io.WriteString(writer, `) rotate(`)
+	io.WriteString(writer, strconv.Itoa(rotate))
+	io.WriteString(writer, `, `)
+	io.WriteString(writer, strconv.Itoa(cx))
+	io.WriteString(writer, `, `)
+	io.WriteString(writer, strconv.Itoa(cy))
+	io.WriteString(writer, `)" />` + "\n")
+}
+
 func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 	offsetX := dim4*f.svgFloorWidth() + paddingX
 	offsetY := dim3*f.svgFloorHeight() + paddingY
 
-	fmt.Fprintf(writer, `<g transform="translate(%d %d)">`, offsetX, offsetY)
-	io.WriteString(writer, "\n")
+	io.WriteString(writer, `<g transform="translate(` + strconv.Itoa(offsetX) + `, ` + strconv.Itoa(offsetY) + `)">` + "\n")
 
 	for dim2 := 0; dim2 < f.sizes[1]; dim2++ {
 		for dim1 := 0; dim1 < f.sizes[0]; dim1++ {
@@ -63,27 +90,17 @@ func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 				writeSvgLine(writer, x1, y1, x2, y2)
 			}
 			if room.openWalls[2] {
-				cx := svgRoomSize / 2
-				cy := svgRoomSize / 2
-				fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(180, %d, %d)" />`,
-					x1, y1, cx, cy)
-				io.WriteString(writer, "\n")
+				writeSvgUseArrow(writer, x1, y1, 180)
 			}
 			if room.openWalls[3] {
-				cx := svgRoomSize / 2
-				cy := svgRoomSize / 2
-				fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(90, %d, %d)" />`,
-					x1, y1, cx, cy)
-				io.WriteString(writer, "\n")
+				writeSvgUseArrow(writer, x1, y1, 90)
 			}
 
 			nextCoord := coord
 			nextCoord[2]++
 			if nextCoord[2] < f.sizes[2] {
 				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[2] {
-					fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d)" />`,
-						x1, y1)
-					io.WriteString(writer, "\n")
+					writeSvgUseArrow(writer, x1, y1, 0)
 				}
 			}
 
@@ -91,11 +108,7 @@ func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 			nextCoord[3]++
 			if nextCoord[3] < f.sizes[3] {
 				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[3] {
-					cx := svgRoomSize / 2
-					cy := svgRoomSize / 2
-					fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(270, %d, %d)" />`,
-						x1, y1, cx, cy)
-					io.WriteString(writer, "\n")
+					writeSvgUseArrow(writer, x1, y1, 270)
 				}
 			}
 

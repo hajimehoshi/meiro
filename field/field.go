@@ -20,12 +20,12 @@ type Room struct {
 type Position [maxDimension]int
 
 type Field struct {
-	rooms         []Room
-	sizes         [maxDimension]int
-	startPosition Position
-	endPosition   Position
-	costs         []int
-	parentRooms   []int
+	rooms       []Room
+	sizes       [maxDimension]int
+	startIndex  int
+	endIndex    int
+	costs       []int
+	parentRooms []int
 }
 
 func roomPosition(sizes [maxDimension]int, index int) Position {
@@ -34,14 +34,14 @@ func roomPosition(sizes [maxDimension]int, index int) Position {
 	for i := 1; i < len(sizes); i++ {
 		coord[i] = coord[i-1] / sizes[i-1]
 	}
-	for i := 0; i < len(sizes); i++ {
-		coord[i] %= sizes[i]
+	for i, size := range sizes {
+		coord[i] %= size
 	}
 	return coord
 }
 
 func roomIndex(sizes [maxDimension]int, coord Position) int {
-	index := coord[maxDimension - 1]
+	index := coord[maxDimension-1]
 	for i := len(sizes) - 2; 0 <= i; i-- {
 		index *= sizes[i]
 		index += coord[i]
@@ -49,15 +49,24 @@ func roomIndex(sizes [maxDimension]int, coord Position) int {
 	return index
 }
 
-func cluster(roomClusters []int, i int) int {
+func roomCluster(roomClusters []int, i int) int {
+	path := make([]int, 1, 4)
+	path[0] = i
 	for ; i != roomClusters[i]; i = roomClusters[i] {
+		path = append(path, i)
 	}
-	return i
+	cluster := i
+	for _, i := range path {
+		roomClusters[i] = cluster
+	}
+	return cluster
 }
 
 func allRoomsConnected(roomClusters []int) bool {
-	for i := 0; i < len(roomClusters); i++ {
-		if cluster(roomClusters, i) != 0 {
+	for i, _ := range roomClusters {
+		cluster := roomCluster(roomClusters, i)
+		if cluster != 0 {
+			roomClusters[i] = cluster
 			return false
 		}
 	}
@@ -69,86 +78,85 @@ func (f *Field) nextRooms(index int) ([maxDimension * 2]int, int) {
 	position := roomPosition(f.sizes, index)
 	len := 0
 	for i := 0; i < maxDimension; i++ {
-		nextPosition := position
-		nextPosition[i]--
-		if nextPosition[i] < 0 {
-			continue
+		if nextPosition := position; nextPosition[i] != 0 {
+			nextPosition[i]--
+			nextIndexes[len] = roomIndex(f.sizes, nextPosition)
+			len++
 		}
-		nextIndexes[len] = roomIndex(f.sizes, nextPosition)
-		len++
-	}
-	for i := 0; i < maxDimension; i++ {
-		nextPosition := position
-		nextPosition[i]++
-		if f.sizes[i] <= nextPosition[i] {
-			continue
+		if nextPosition := position; nextPosition[i] != f.sizes[i]-1 {
+			nextPosition[i]++
+			nextIndexes[len] = roomIndex(f.sizes, nextPosition)
+			len++
 		}
-		nextIndexes[len] = roomIndex(f.sizes, nextPosition)
-		len++
 	}
 	return nextIndexes, len
 }
 
 func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
-	// TODO: Unify with nextRooms
-	nextIndexes := [maxDimension * 2]int{}
-	position := roomPosition(f.sizes, index)
-	len := 0
+	offsets := [maxDimension]int{}
 	for i := 0; i < maxDimension; i++ {
-		if !f.rooms[index].openWalls[i] {
-			continue
+		offset := 1
+		for j := 0; j < i; j++ {
+			offset *= f.sizes[j]
 		}
-		nextPosition := position
-		nextPosition[i]--
-		nextIndexes[len] = roomIndex(f.sizes, nextPosition)
-		len++
+		offsets[i] = offset
 	}
+
+	nextIndexes := [maxDimension * 2]int{}
+	nextIndexesLen := 0
+	roomsLen := len(f.rooms)
 	for i := 0; i < maxDimension; i++ {
-		nextPosition := position
-		nextPosition[i]++
-		if f.sizes[i] <= nextPosition[i] {
+		if f.rooms[index].openWalls[i] {
+			nextIndexes[nextIndexesLen] = index - offsets[i]
+			nextIndexesLen++
+		}
+		nextIndex := index + offsets[i]
+		if roomsLen <= nextIndex {
 			continue
 		}
-		nextIndex := roomIndex(f.sizes, nextPosition)
 		if !f.rooms[nextIndex].openWalls[i] {
 			continue
 		}
-		nextIndexes[len] = nextIndex
-		len++
+		nextIndexes[nextIndexesLen] = nextIndex
+		nextIndexesLen++
 	}
-	return nextIndexes, len
+	return nextIndexes, nextIndexesLen
 }
 
 func (f *Field) calcCosts() {
-	currentPositions := map[Position]struct{}{f.startPosition: struct{}{}}
-	f.parentRooms[roomIndex(f.sizes, f.startPosition)] = -1
-	for i := 0; 0 < len(currentPositions); i++ {
-		nextPositions := map[Position]struct{}{}
-		for position, _ := range currentPositions {
-			index := roomIndex(f.sizes, position)
-			f.costs[index] = i
+	startIndex := f.startIndex
+	currentIndexes := []int{startIndex}
+	nextIndexes := []int{}
+	f.parentRooms[startIndex] = -1
+	for cost := 0; 0 < len(currentIndexes); cost++ {
+		nextIndexes = nextIndexes[:0]
+		for _, index := range currentIndexes {
+			f.costs[index] = cost
 			rooms, len := f.nextConnectedRooms(index)
 			for _, nextIndex := range rooms[:len] {
-				nextPosition := roomPosition(f.sizes, nextIndex)
-				if nextPosition == f.startPosition {
+				if nextIndex == startIndex {
 					continue
 				}
 				if 0 < f.costs[nextIndex] {
 					continue
 				}
-				nextPositions[nextPosition] = struct{}{}
+				nextIndexes = append(nextIndexes, nextIndex)
 				f.parentRooms[nextIndex] = index
 			}
 		}
-		currentPositions = nextPositions
+		diff := len(nextIndexes) - len(currentIndexes)
+		if 0 < diff {
+			currentIndexes = append(currentIndexes, make([]int, diff)...)
+		}
+		copy(currentIndexes, nextIndexes)
+		currentIndexes = currentIndexes[:len(nextIndexes)]
 	}
 }
 
 func (f *Field) deadEnds() []int {
 	deadEnds := []int{}
 	for i, _ := range f.rooms {
-		_, len := f.nextConnectedRooms(i)
-		if len == 1 {
+		if _, len := f.nextConnectedRooms(i); len == 1 {
 			deadEnds = append(deadEnds, i)
 		}
 	}
@@ -169,20 +177,20 @@ func (f *Field) isSmallDeadEnd(index int) bool {
 
 func (f *Field) reduceDeadEnds(random *rand.Rand) {
 	for _, deadEnd := range f.deadEnds() {
-		_, roomsLen := f.nextConnectedRooms(deadEnd)
-		if roomsLen != 1 {
+		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen != -1 {
 			continue
 		}
 		smallEnd := f.isSmallDeadEnd(deadEnd)
 		nextRooms, nextRoomsLen := f.nextRooms(deadEnd)
 		for _, nextRoom := range nextRooms[:nextRoomsLen] {
-			_, roomsLen := f.nextConnectedRooms(nextRoom)
-			if roomsLen != 1 {
-				continue
-			}
 			nextSmallEnd := f.isSmallDeadEnd(nextRoom)
-			if !smallEnd && !nextSmallEnd {
-				continue
+			if !nextSmallEnd {
+				if !smallEnd {
+					continue
+				}
+				if _, roomsLen := f.nextConnectedRooms(nextRoom); roomsLen != -1 {
+					continue
+				}
 			}
 			deadEndToRemove := deadEnd
 			if smallEnd && nextSmallEnd {
@@ -217,15 +225,14 @@ func (f *Field) reduceDeadEnds(random *rand.Rand) {
 
 func (f *Field) shortestPath() []int {
 	shortestPath := []int{}
-	position := f.endPosition
+	index := f.endIndex
 	for {
-		index := roomIndex(f.sizes, position)
 		shortestPath = append(shortestPath, index)
 		nextIndex := f.parentRooms[index]
 		if nextIndex == -1 {
 			break
 		}
-		position = roomPosition(f.sizes, nextIndex)
+		index = nextIndex
 	}
 	return shortestPath
 }
@@ -255,23 +262,22 @@ func (f *Field) connectRooms(index1, index2 int) bool {
 }
 
 func (f *Field) oppositeRoomOfDeadEnd(index int) int {
-	room := f.rooms[index]
 	position := roomPosition(f.sizes, index)
 	for i := 0; i < maxDimension; i++ {
-		if !room.openWalls[i] {
-			continue
+		if f.rooms[index].openWalls[i] {
+			nextRoomPosition := position
+			nextRoomPosition[i]++
+			if f.sizes[i] <= nextRoomPosition[i] {
+				return -1
+			}
+			return roomIndex(f.sizes, nextRoomPosition)
 		}
-		nextRoomPosition := position
-		nextRoomPosition[i]++
-		if f.sizes[i] <= nextRoomPosition[i] {
-			return -1
-		}
-		return roomIndex(f.sizes, nextRoomPosition)
-	}
-	for i := 0; i < maxDimension; i++ {
 		connectedRoomPosition := position
 		connectedRoomPosition[i]++
 		connectedRoomIndex := roomIndex(f.sizes, connectedRoomPosition)
+		if len(f.rooms) <= connectedRoomIndex {
+			continue
+		}
 		if !f.rooms[connectedRoomIndex].openWalls[i] {
 			continue
 		}
@@ -285,29 +291,48 @@ func (f *Field) oppositeRoomOfDeadEnd(index int) int {
 	return -1
 }
 
-func (f *Field) createLoops(random *rand.Rand) {
+func (f *Field) costToShortestPath() ([]int, []int) {
 	inShortestPath := make([]bool, len(f.rooms))
 	for _, index := range f.shortestPath() {
 		inShortestPath[index] = true
 	}
 
 	costToShortestPath := make([]int, len(f.rooms))
+	copy(costToShortestPath, f.costs)
 	nearestRoomInShortestPath := make([]int, len(f.rooms))
-	startIndex := roomIndex(f.sizes, f.startPosition)
-	for index, _ := range f.rooms {
-		if index == startIndex {
-			continue
-		}
-		cost := 0
-		for parent := f.parentRooms[index]; ; parent = f.parentRooms[parent] {
-			cost++
-			if inShortestPath[parent] {
-				nearestRoomInShortestPath[index] = parent
-				break
+
+	for _, shortestPathIndex := range f.shortestPath() {
+		currentIndexes := []int{shortestPathIndex}
+		nextIndexes := []int{}
+		for cost := 0; 0 < len(currentIndexes); cost++ {
+			nextIndexes = nextIndexes[:0]
+			for _, index := range currentIndexes {
+				costToShortestPath[index] = cost
+				nearestRoomInShortestPath[index] = shortestPathIndex
+				rooms, len := f.nextConnectedRooms(index)
+				for _, nextIndex := range rooms[:len] {
+					if inShortestPath[nextIndex] {
+						continue
+					}
+					if costToShortestPath[nextIndex] <= cost {
+						continue
+					}
+					nextIndexes = append(nextIndexes, nextIndex)
+				}
 			}
+			diff := len(nextIndexes) - len(currentIndexes)
+			if 0 < diff {
+				currentIndexes = append(currentIndexes, make([]int, diff)...)
+			}
+			copy(currentIndexes, nextIndexes)
+			currentIndexes = currentIndexes[:len(nextIndexes)]
 		}
-		costToShortestPath[index] = cost
 	}
+	return costToShortestPath, nearestRoomInShortestPath
+}
+
+func (f *Field) createLoops(random *rand.Rand) {
+	costToShortestPath, nearestRoomInShortestPath := f.costToShortestPath()
 
 	for _, deadEnd := range f.deadEnds() {
 		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen != 1 {
@@ -321,7 +346,7 @@ func (f *Field) createLoops(random *rand.Rand) {
 		a := costToShortestPath[deadEnd]
 		b := costToShortestPath[nextRoom]
 		c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
-		if c <= (a+b)/4 && 0 < (a + b) % 3 {
+		if c <= (a+b)/4 && 0 < (a+b)%3 {
 			f.connectRooms(deadEnd, nextRoom)
 		}
 	}
@@ -331,52 +356,47 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	f := &Field{
 		rooms:       make([]Room, size1*size2*size3*size4),
 		sizes:       [maxDimension]int{size1, size2, size3, size4},
-		endPosition: Position{size1 - 1, size2 - 1, size3 - 1, size4 - 1},
 		costs:       make([]int, size1*size2*size3*size4),
 		parentRooms: make([]int, size1*size2*size3*size4),
 	}
+	f.endIndex = roomIndex(f.sizes, Position{size1 - 1, size2 - 1, size3 - 1, size4 - 1})
 
 	roomClusters := make([]int, len(f.rooms))
-	for i := 0; i < len(roomClusters); i++ {
+	for i, _ := range roomClusters {
 		roomClusters[i] = i
 	}
 
 	for !allRoomsConnected(roomClusters) {
 		dim := 0
-		rIndex := 0
-		rCluster := 0
+		index := 0
+		cluster := 0
 		nextRoomCluster := 0
 		for {
 			r := random.Intn(len(f.rooms) * maxDimension)
 			dim = r % maxDimension
-			rIndex = r / maxDimension
-
-			room := f.rooms[rIndex]
-			if room.openWalls[dim] {
+			index = r / maxDimension
+			if f.rooms[index].openWalls[dim] {
 				continue
 			}
-			roomPosition := roomPosition(f.sizes, rIndex)
-			nextRoomPosition := Position{}
-			copy(nextRoomPosition[:], roomPosition[:])
-			nextRoomPosition[dim] -= 1
+			nextRoomPosition := roomPosition(f.sizes, index)
+			nextRoomPosition[dim]--
 			if nextRoomPosition[dim] < 0 {
 				continue
 			}
 			nextRoomIndex := roomIndex(f.sizes, nextRoomPosition)
-			rCluster = cluster(roomClusters, rIndex)
-			nextRoomCluster = cluster(roomClusters, nextRoomIndex)
-			if rCluster == nextRoomCluster {
+			cluster = roomCluster(roomClusters, index)
+			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
+			if cluster == nextRoomCluster {
 				continue
 			}
 			break
 		}
 
-		room := &f.rooms[rIndex]
-		room.openWalls[dim] = true
-		if rCluster < nextRoomCluster {
-			roomClusters[nextRoomCluster] = rCluster
+		f.rooms[index].openWalls[dim] = true
+		if cluster < nextRoomCluster {
+			roomClusters[nextRoomCluster] = cluster
 		} else {
-			roomClusters[rCluster] = nextRoomCluster
+			roomClusters[cluster] = nextRoomCluster
 		}
 	}
 
