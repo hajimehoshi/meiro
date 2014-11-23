@@ -2,7 +2,6 @@ package field
 
 import (
 	"math/rand"
-	//"sort"
 )
 
 func abs(i int) int {
@@ -31,24 +30,21 @@ type Field struct {
 
 func roomPosition(sizes [maxDimension]int, index int) Position {
 	coord := Position{}
+	coord[0] = index
+	for i := 1; i < len(sizes); i++ {
+		coord[i] = coord[i-1] / sizes[i-1]
+	}
 	for i := 0; i < len(sizes); i++ {
-		c := index
-		for j := i - 1; 0 <= j; j-- {
-			c /= sizes[j]
-		}
-		c %= sizes[i]
-		coord[i] = c
+		coord[i] %= sizes[i]
 	}
 	return coord
 }
 
 func roomIndex(sizes [maxDimension]int, coord Position) int {
-	index := 0
-	for i := len(sizes) - 1; 0 <= i; i-- {
+	index := coord[maxDimension - 1]
+	for i := len(sizes) - 2; 0 <= i; i-- {
+		index *= sizes[i]
 		index += coord[i]
-		if 0 <= i-1 {
-			index *= sizes[i-1]
-		}
 	}
 	return index
 }
@@ -256,23 +252,6 @@ func (f *Field) connectRooms(index1, index2 int) bool {
 		return true
 	}
 	return false
-}
-
-type sortingInts struct {
-	values []int
-	less   func(i, j int) bool
-}
-
-func (s *sortingInts) Len() int {
-	return len(s.values)
-}
-
-func (s *sortingInts) Less(i, j int) bool {
-	return s.less(i, j)
-}
-
-func (s *sortingInts) Swap(i, j int) {
-	s.values[i], s.values[j] = s.values[j], s.values[i]
 }
 
 func (f *Field) oppositeRoomOfDeadEnd(index int) int {
