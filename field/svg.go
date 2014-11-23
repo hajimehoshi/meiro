@@ -154,7 +154,6 @@ func (f *Field) WriteSVG(writer io.Writer) {
 			writeSvgDashedLine(writer, x1, y1, x2, y2)
 		}
 	}
-
 	fmt.Fprintln(writer, `</g>`)
 
 	fmt.Fprintln(writer, `</svg>`)

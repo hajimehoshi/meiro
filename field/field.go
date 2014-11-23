@@ -2,7 +2,7 @@ package field
 
 import (
 	"math/rand"
-	"sort"
+	//"sort"
 )
 
 func abs(i int) int {
@@ -275,6 +275,37 @@ func (s *sortingInts) Swap(i, j int) {
 	s.values[i], s.values[j] = s.values[j], s.values[i]
 }
 
+func (f *Field) oppositeRoomOfDeadEnd(index int) int {
+	room := f.rooms[index]
+	position := roomPosition(f.sizes, index)
+	for i := 0; i < maxDimension; i++ {
+		if !room.openWalls[i] {
+			continue
+		}
+		nextRoomPosition := position
+		nextRoomPosition[i]++
+		if f.sizes[i] <= nextRoomPosition[i] {
+			return -1
+		}
+		return roomIndex(f.sizes, nextRoomPosition)
+	}
+	for i := 0; i < maxDimension; i++ {
+		connectedRoomPosition := position
+		connectedRoomPosition[i]++
+		connectedRoomIndex := roomIndex(f.sizes, connectedRoomPosition)
+		if !f.rooms[connectedRoomIndex].openWalls[i] {
+			continue
+		}
+		nextRoomPosition := position
+		nextRoomPosition[i]--
+		if nextRoomPosition[i] < 0 {
+			return -1
+		}
+		return roomIndex(f.sizes, nextRoomPosition)
+	}
+	return -1
+}
+
 func (f *Field) createLoops(random *rand.Rand) {
 	inShortestPath := make([]bool, len(f.rooms))
 	for _, index := range f.shortestPath() {
@@ -300,32 +331,19 @@ func (f *Field) createLoops(random *rand.Rand) {
 	}
 
 	for _, deadEnd := range f.deadEnds() {
-		_, roomsLen := f.nextConnectedRooms(deadEnd)
-		if roomsLen != 1 {
+		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen != 1 {
 			continue
 		}
-		nextRooms, nextRoomsLen := f.nextRooms(deadEnd)
+		nextRoom := f.oppositeRoomOfDeadEnd(deadEnd)
+		if nextRoom == -1 {
+			continue
+		}
 
-		sort.Sort(&sortingInts{nextRooms[:nextRoomsLen], func(i, j int) bool {
-			nextRoom1 := nextRooms[i]
-			nextRoom2 := nextRooms[j]
-
-			b1 := costToShortestPath[nextRoom1]
-			b2 := costToShortestPath[nextRoom2]
-			c1 := abs(nearestRoomInShortestPath[nextRoom1] - nearestRoomInShortestPath[deadEnd])
-			c2 := abs(nearestRoomInShortestPath[nextRoom2] - nearestRoomInShortestPath[deadEnd])
-			return (b1 + c1) < (b2 + c2)
-		}})
-
-		for i := 0; i < nextRoomsLen; i++ {
-			nextRoom := nextRooms[i]
-			a := costToShortestPath[deadEnd]
-			b := costToShortestPath[nextRoom]
-			c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
-			if c <= (a+b)/4 {
-				f.connectRooms(deadEnd, nextRoom)
-				break
-			}
+		a := costToShortestPath[deadEnd]
+		b := costToShortestPath[nextRoom]
+		c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
+		if c <= (a+b)/4 && 0 < (a + b) % 3 {
+			f.connectRooms(deadEnd, nextRoom)
 		}
 	}
 }
