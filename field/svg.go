@@ -3,30 +3,32 @@ package field
 import (
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 )
 
 const svgRoomSize = 8
 const paddingX = svgRoomSize
 const paddingY = svgRoomSize
 
+func writeSvgLine(writer io.Writer, x1, y1, x2, y2 int) {
+	fmt.Fprintf(writer, `<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2)
+	io.WriteString(writer, "\n")
+}
+
+func writeSvgDashedLine(writer io.Writer, x1, y1, x2, y2 int) {
+	fmt.Fprintf(writer, `<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-dasharray="2" stroke-opacity="0.3" />`, x1, y1, x2, y2)
+	io.WriteString(writer, "\n")
+}
+
 func svgLine(x1, y1, x2, y2 int) string {
 	return fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" />`, x1, y1, x2, y2)
 }
 
-func svgDashedLine(x1, y1, x2, y2 int) string {
-	return fmt.Sprintf(`<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-dasharray="2" stroke-opacity="0.3" />`, x1, y1, x2, y2)
-}
-
-func svgArrow() string {
-	lines := []string{}
+func writeSvgArrows(writer io.Writer) {
 	cx := svgRoomSize / 2
 	cy := svgRoomSize / 2
-	lines = append(lines, svgLine(cx, cy, cx, svgRoomSize - 1))
-	lines = append(lines, svgLine(3, cy + 2, cx, svgRoomSize - 1))
-	lines = append(lines, svgLine(svgRoomSize - 3, cy + 2, cx, svgRoomSize - 1))
-	return strings.Join(lines, "\n")
+	writeSvgLine(writer, cx, cy, cx, svgRoomSize - 1)
+	writeSvgLine(writer, 3, cy + 2, cx, svgRoomSize - 1)
+	writeSvgLine(writer, svgRoomSize - 3, cy + 2, cx, svgRoomSize - 1)
 }
 
 func (f *Field) svgFloorWidth() int {
@@ -37,16 +39,12 @@ func (f *Field) svgFloorHeight() int {
 	return f.sizes[1]*svgRoomSize + 2*paddingY
 }
 
-func (f *Field) svgFloor(dim3, dim4 int) string {
-	var tmpl = `
-<g transform="translate({{offsetX}}, {{offsetY}})">
-  {{lines}}
-  {{arrows}}
-</g>
-`[1:]
+func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
+	offsetX := dim4*f.svgFloorWidth() + paddingX
+	offsetY := dim3*f.svgFloorHeight() + paddingY
 
-	lines := []string{}
-	arrows := []string{}
+	fmt.Fprintf(writer, `<g transform="translate(%d %d)">`, offsetX, offsetY)
+	io.WriteString(writer, "\n")
 
 	for dim2 := 0; dim2 < f.sizes[1]; dim2++ {
 		for dim1 := 0; dim1 < f.sizes[0]; dim1++ {
@@ -57,35 +55,35 @@ func (f *Field) svgFloor(dim3, dim4 int) string {
 			if !room.openWalls[0] {
 				x2 := dim1 * svgRoomSize
 				y2 := (dim2 + 1) * svgRoomSize
-				lines = append(lines, svgLine(x1, y1, x2, y2))
+				writeSvgLine(writer, x1, y1, x2, y2)
 			}
 			if !room.openWalls[1] {
 				x2 := (dim1 + 1) * svgRoomSize
 				y2 := dim2 * svgRoomSize
-				lines = append(lines, svgLine(x1, y1, x2, y2))
+				writeSvgLine(writer, x1, y1, x2, y2)
 			}
 			if room.openWalls[2] {
 				cx := svgRoomSize / 2
 				cy := svgRoomSize / 2
-				arrow := fmt.Sprintf(`<use xlink:href="#arrow" transform="translate(%d, %d) rotate(180, %d, %d)" />`,
+				fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(180, %d, %d)" />`,
 					x1, y1, cx, cy)
-				arrows = append(arrows, arrow)
+				io.WriteString(writer, "\n")
 			}
 			if room.openWalls[3] {
 				cx := svgRoomSize / 2
 				cy := svgRoomSize / 2
-				arrow := fmt.Sprintf(`<use xlink:href="#arrow" transform="translate(%d, %d) rotate(90, %d, %d)" />`,
+				fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(90, %d, %d)" />`,
 					x1, y1, cx, cy)
-				arrows = append(arrows, arrow)
+				io.WriteString(writer, "\n")
 			}
 
 			nextCoord := coord
 			nextCoord[2]++
 			if nextCoord[2] < f.sizes[2] {
 				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[2] {
-					arrow := fmt.Sprintf(`<use xlink:href="#arrow" transform="translate(%d, %d)" />`,
+					fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d)" />`,
 						x1, y1)
-					arrows = append(arrows, arrow)
+					io.WriteString(writer, "\n")
 				}
 			}
 
@@ -95,9 +93,9 @@ func (f *Field) svgFloor(dim3, dim4 int) string {
 				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[3] {
 					cx := svgRoomSize / 2
 					cy := svgRoomSize / 2
-					arrow := fmt.Sprintf(`<use xlink:href="#arrow" transform="translate(%d, %d) rotate(270, %d, %d)" />`,
+					fmt.Fprintf(writer, `<use xlink:href="#arrow" transform="translate(%d, %d) rotate(270, %d, %d)" />`,
 						x1, y1, cx, cy)
-					arrows = append(arrows, arrow)
+					io.WriteString(writer, "\n")
 				}
 			}
 
@@ -106,55 +104,36 @@ func (f *Field) svgFloor(dim3, dim4 int) string {
 
 	width := f.sizes[0] * svgRoomSize
 	height := f.sizes[1] * svgRoomSize
-	lines = append(lines, svgLine(0, height, width, height))
-	lines = append(lines, svgLine(width, 0, width, height))
+	writeSvgLine(writer, 0, height, width, height)
+	writeSvgLine(writer, width, 0, width, height)
 
-	offsetX := dim4*f.svgFloorWidth() + paddingX
-	offsetY := dim3*f.svgFloorHeight() + paddingY
-
-	svg := tmpl
-	svg = strings.Replace(svg, "{{offsetX}}", strconv.Itoa(offsetX), -1)
-	svg = strings.Replace(svg, "{{offsetY}}", strconv.Itoa(offsetY), -1)
-	svg = strings.Replace(svg, "{{lines}}", strings.Join(lines, "\n"), -1)
-	svg = strings.Replace(svg, "{{arrows}}", strings.Join(arrows, "\n"), -1)
-	return svg
+	fmt.Fprintln(writer, `</g>`)
 }
 
 func (f *Field) WriteSVG(writer io.Writer) {
-	var tmpl = `
-<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 {{width}} {{height}}" background-color="#fff">
-  <defs>
-    <symbol id="arrow" stroke-width="0.5">
-      {{arrow}}
-    </symbol>
-  </defs>
-  <g stroke="black" stroke-width="1" stroke-linecap="round">
-    {{floors}}
-  </g>
-  <g stroke="red" stroke-width="1" stroke-linecap="round">
-    {{shortestPath}}
-  </g>
-</svg>
-`[1:]
-
 	width := f.svgFloorWidth() * f.sizes[3]
 	height := f.svgFloorHeight() * f.sizes[2]
 
-	svg := tmpl
-	svg = strings.Replace(svg, "{{width}}", strconv.Itoa(width), -1)
-	svg = strings.Replace(svg, "{{height}}", strconv.Itoa(height), -1)
-	svg = strings.Replace(svg, "{{arrow}}", svgArrow(), -1)
-	floors := []string{}
+	fmt.Fprintf(writer, `<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 %d %d" background-color="#fff">
+`, width, height);
+
+	fmt.Fprintln(writer, `<defs>`)
+	fmt.Fprintln(writer, `<symbol id="arrow" stroke-width="0.5">`)
+	writeSvgArrows(writer)
+	fmt.Fprintln(writer, `</symbol>`)
+	fmt.Fprintln(writer, `</defs>`)
+
+	fmt.Fprintln(writer, `<g stroke="black" stroke-width="1" stroke-linecap="round">`)
 	for dim4 := 0; dim4 < f.sizes[3]; dim4++ {
 		for dim3 := 0; dim3 < f.sizes[2]; dim3++ {
-			floors = append(floors, f.svgFloor(dim3, dim4))
+			f.writeSvgFloor(writer, dim3, dim4)
 		}
 	}
-	svg = strings.Replace(svg, "{{floors}}", strings.Join(floors, "\n"), -1)
+	fmt.Fprintln(writer, `</g>`)
 
-	shortestPathLines := []string{}
+	fmt.Fprintln(writer, `<g stroke="red" stroke-width="1" stroke-linecap="round">`)
 	shortestPath := f.shortestPath()
 	for i := 0; i < len(shortestPath) - 1; i++ {
 		index := shortestPath[i]
@@ -169,16 +148,14 @@ func (f *Field) WriteSVG(writer io.Writer) {
 			svgRoomSize / 2 + paddingX
 		y2 := nextPosition[2] * f.svgFloorHeight() + nextPosition[1] * svgRoomSize +
 			svgRoomSize / 2 + paddingY
-		line := ""
 		if position[2] == nextPosition[2] && position[3] == nextPosition[3] {
-			line = svgLine(x1, y1, x2, y2)
+			writeSvgLine(writer, x1, y1, x2, y2)
 		} else {
-			line = svgDashedLine(x1, y1, x2, y2)
+			writeSvgDashedLine(writer, x1, y1, x2, y2)
 		}
-		shortestPathLines = append(shortestPathLines, line)
 	}
 
-	svg = strings.Replace(svg, "{{shortestPath}}", strings.Join(shortestPathLines, "\n"), -1)
+	fmt.Fprintln(writer, `</g>`)
 
-	io.WriteString(writer, svg)
+	fmt.Fprintln(writer, `</svg>`)
 }
