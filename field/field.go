@@ -73,6 +73,83 @@ func allRoomsConnected(roomClusters []int) bool {
 	return true
 }
 
+func (f *Field) create(random *rand.Rand) {
+	roomClusters := make([]int, len(f.rooms))
+	for i, _ := range roomClusters {
+		roomClusters[i] = i
+	}
+
+	type wall struct{
+		roomIndex int
+		dimension int
+	}
+	wallsToRemove := make([]wall, len(f.rooms) * maxDimension)
+	for i, _ := range wallsToRemove {
+		wallsToRemove[i] = wall{i / maxDimension, i % maxDimension}
+	}
+
+	garbageNum := 0
+	for !allRoomsConnected(roomClusters) {
+		dim := 0
+		index := 0
+		cluster := 0
+		nextRoomCluster := 0
+		for {
+			wallIndex := random.Intn(len(wallsToRemove))
+			w := wallsToRemove[wallIndex]
+			dim = w.dimension
+			index = w.roomIndex
+			if index == -1 {
+				continue
+			}
+			if f.rooms[index].openWalls[dim] {
+				wallsToRemove[wallIndex].roomIndex = -1
+				garbageNum++
+				continue
+			}
+			position := roomPosition(f.sizes, index)
+			if position[dim] == 0 {
+				wallsToRemove[wallIndex].roomIndex = -1
+				garbageNum++
+				continue
+			}
+			nextRoomPosition := position
+			nextRoomPosition[dim]--
+			nextRoomIndex := roomIndex(f.sizes, nextRoomPosition)
+			cluster = roomCluster(roomClusters, index)
+			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
+			if cluster == nextRoomCluster {
+				wallsToRemove[wallIndex].roomIndex = -1
+				garbageNum++
+				continue
+			}
+			wallsToRemove[wallIndex].roomIndex = -1
+			garbageNum++
+			break
+		}
+
+		f.rooms[index].openWalls[dim] = true
+		if cluster < nextRoomCluster {
+			roomClusters[nextRoomCluster] = cluster
+		} else {
+			roomClusters[cluster] = nextRoomCluster
+		}
+
+		if len(wallsToRemove) / 8 <= garbageNum {			
+			offset := 0
+			for i, wall := range wallsToRemove {
+				if wall.roomIndex == -1 {
+					offset++
+					continue
+				}
+				wallsToRemove[i-offset] = wall
+			}
+			wallsToRemove = wallsToRemove[:len(wallsToRemove)-offset]
+			garbageNum = 0
+		}
+	}
+}
+
 func (f *Field) nextRooms(index int) ([maxDimension * 2]int, int) {
 	nextIndexes := [maxDimension * 2]int{}
 	position := roomPosition(f.sizes, index)
@@ -361,44 +438,7 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	}
 	f.endIndex = roomIndex(f.sizes, Position{size1 - 1, size2 - 1, size3 - 1, size4 - 1})
 
-	roomClusters := make([]int, len(f.rooms))
-	for i, _ := range roomClusters {
-		roomClusters[i] = i
-	}
-
-	for !allRoomsConnected(roomClusters) {
-		dim := 0
-		index := 0
-		cluster := 0
-		nextRoomCluster := 0
-		for {
-			r := random.Intn(len(f.rooms) * maxDimension)
-			dim = r % maxDimension
-			index = r / maxDimension
-			if f.rooms[index].openWalls[dim] {
-				continue
-			}
-			nextRoomPosition := roomPosition(f.sizes, index)
-			nextRoomPosition[dim]--
-			if nextRoomPosition[dim] < 0 {
-				continue
-			}
-			nextRoomIndex := roomIndex(f.sizes, nextRoomPosition)
-			cluster = roomCluster(roomClusters, index)
-			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
-			if cluster == nextRoomCluster {
-				continue
-			}
-			break
-		}
-
-		f.rooms[index].openWalls[dim] = true
-		if cluster < nextRoomCluster {
-			roomClusters[nextRoomCluster] = cluster
-		} else {
-			roomClusters[cluster] = nextRoomCluster
-		}
-	}
+	f.create(random)
 
 	deadEndsNum := len(f.deadEnds())
 	for {
