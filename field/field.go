@@ -50,7 +50,7 @@ func roomIndex(sizes [maxDimension]int, coord Position) int {
 }
 
 func roomCluster(roomClusters []int, i int) int {
-	path := make([]int, 1, 4)
+	path := make([]int, 1, 8)
 	path[0] = i
 	for ; i != roomClusters[i]; i = roomClusters[i] {
 		path = append(path, i)
@@ -64,9 +64,7 @@ func roomCluster(roomClusters []int, i int) int {
 
 func allRoomsConnected(roomClusters []int) bool {
 	for i, _ := range roomClusters {
-		cluster := roomCluster(roomClusters, i)
-		if cluster != 0 {
-			roomClusters[i] = cluster
+		if roomCluster(roomClusters, i) != 0 {
 			return false
 		}
 	}
@@ -74,57 +72,66 @@ func allRoomsConnected(roomClusters []int) bool {
 }
 
 func (f *Field) create(random *rand.Rand) {
+	offsets := nextRoomOffsets(f.sizes)
+
+	denoms := [maxDimension]int{}
+	for dim := 0; dim < maxDimension; dim++ {
+		denom := 1
+		for i := 0; i < dim; i++ {
+			denom *= f.sizes[i]
+		}
+		denoms[dim] = denom
+	}
+
 	roomClusters := make([]int, len(f.rooms))
 	for i, _ := range roomClusters {
 		roomClusters[i] = i
 	}
 
-	type wall struct{
+	type wall struct {
 		roomIndex int
 		dimension int
 	}
-	wallsToRemove := make([]wall, len(f.rooms) * maxDimension)
-	for i, _ := range wallsToRemove {
-		wallsToRemove[i] = wall{i / maxDimension, i % maxDimension}
+	walls := make([]wall, 0, len(f.rooms)*maxDimension)
+	for i := 0; i < cap(walls); i++ {
+		index := i / maxDimension
+		dim := i % maxDimension
+		if (index / denoms[dim]) % f.sizes[dim] == 0 {
+			continue
+		}
+		walls = append(walls, wall{index, dim})
 	}
+	walls = walls[:len(walls):len(walls)]
 
-	garbageNum := 0
 	for !allRoomsConnected(roomClusters) {
 		dim := 0
 		index := 0
 		cluster := 0
 		nextRoomCluster := 0
 		for {
-			wallIndex := random.Intn(len(wallsToRemove))
-			w := wallsToRemove[wallIndex]
+			wallIndex := random.Intn(len(walls))
+			w := walls[wallIndex]
 			dim = w.dimension
 			index = w.roomIndex
-			if index == -1 {
-				continue
-			}
 			if f.rooms[index].openWalls[dim] {
-				wallsToRemove[wallIndex].roomIndex = -1
-				garbageNum++
+				l := len(walls) - 1
+				walls[wallIndex] = walls[l]
+				walls = walls[:l:l]
 				continue
 			}
-			position := roomPosition(f.sizes, index)
-			if position[dim] == 0 {
-				wallsToRemove[wallIndex].roomIndex = -1
-				garbageNum++
-				continue
-			}
-			nextRoomPosition := position
-			nextRoomPosition[dim]--
-			nextRoomIndex := roomIndex(f.sizes, nextRoomPosition)
+
+			nextRoomIndex := index - offsets[dim]
 			cluster = roomCluster(roomClusters, index)
 			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
 			if cluster == nextRoomCluster {
-				wallsToRemove[wallIndex].roomIndex = -1
-				garbageNum++
+				l := len(walls) - 1
+				walls[wallIndex] = walls[l]
+				walls = walls[:l:l]
 				continue
 			}
-			wallsToRemove[wallIndex].roomIndex = -1
-			garbageNum++
+			l := len(walls) - 1
+			walls[wallIndex] = walls[l]
+			walls = walls[:l:l]
 			break
 		}
 
@@ -133,19 +140,6 @@ func (f *Field) create(random *rand.Rand) {
 			roomClusters[nextRoomCluster] = cluster
 		} else {
 			roomClusters[cluster] = nextRoomCluster
-		}
-
-		if len(wallsToRemove) / 8 <= garbageNum {			
-			offset := 0
-			for i, wall := range wallsToRemove {
-				if wall.roomIndex == -1 {
-					offset++
-					continue
-				}
-				wallsToRemove[i-offset] = wall
-			}
-			wallsToRemove = wallsToRemove[:len(wallsToRemove)-offset]
-			garbageNum = 0
 		}
 	}
 }
@@ -169,15 +163,20 @@ func (f *Field) nextRooms(index int) ([maxDimension * 2]int, int) {
 	return nextIndexes, len
 }
 
-func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
+func nextRoomOffsets(sizes [maxDimension]int) [maxDimension]int {
 	offsets := [maxDimension]int{}
 	for i := 0; i < maxDimension; i++ {
 		offset := 1
 		for j := 0; j < i; j++ {
-			offset *= f.sizes[j]
+			offset *= sizes[j]
 		}
 		offsets[i] = offset
 	}
+	return offsets
+}
+
+func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
+	offsets := nextRoomOffsets(f.sizes)
 
 	nextIndexes := [maxDimension * 2]int{}
 	nextIndexesLen := 0
