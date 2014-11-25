@@ -96,6 +96,7 @@ func (f *Field) create(random *rand.Rand) {
 	for i := 0; i < cap(walls); i++ {
 		index := i / maxDimension
 		dim := i % maxDimension
+		// Instead of roomPosition(f.sizes, index)[dim] == 0
 		if (index / denoms[dim]) % f.sizes[dim] == 0 {
 			continue
 		}
@@ -108,30 +109,25 @@ func (f *Field) create(random *rand.Rand) {
 		index := 0
 		cluster := 0
 		nextRoomCluster := 0
+
+		wallIndex := random.Intn(len(walls))
 		for {
-			wallIndex := random.Intn(len(walls))
 			w := walls[wallIndex]
 			dim = w.dimension
 			index = w.roomIndex
-			if f.rooms[index].openWalls[dim] {
-				l := len(walls) - 1
-				walls[wallIndex] = walls[l]
-				walls = walls[:l:l]
-				continue
-			}
 
 			nextRoomIndex := index - offsets[dim]
 			cluster = roomCluster(roomClusters, index)
 			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
-			if cluster == nextRoomCluster {
-				l := len(walls) - 1
-				walls[wallIndex] = walls[l]
-				walls = walls[:l:l]
-				continue
-			}
+
 			l := len(walls) - 1
 			walls[wallIndex] = walls[l]
 			walls = walls[:l:l]
+			if cluster == nextRoomCluster {
+				wallIndex++
+				wallIndex %= l
+				continue
+			}
 			break
 		}
 
@@ -244,7 +240,7 @@ func (f *Field) isSmallDeadEnd(index int) bool {
 	if roomsLen != 1 {
 		return false
 	}
-	rooms, roomsLen = f.nextConnectedRooms(rooms[0])
+	_, roomsLen = f.nextConnectedRooms(rooms[0])
 	if roomsLen == 2 {
 		return false
 	}
