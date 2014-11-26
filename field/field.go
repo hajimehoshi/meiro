@@ -49,28 +49,6 @@ func roomIndex(sizes [maxDimension]int, coord Position) int {
 	return index
 }
 
-func roomCluster(roomClusters []int, i int) int {
-	path := make([]int, 1, 8)
-	path[0] = i
-	for ; i != roomClusters[i]; i = roomClusters[i] {
-		path = append(path, i)
-	}
-	cluster := i
-	for _, i := range path {
-		roomClusters[i] = cluster
-	}
-	return cluster
-}
-
-func allRoomsConnected(roomClusters []int) bool {
-	for i, _ := range roomClusters {
-		if roomCluster(roomClusters, i) != 0 {
-			return false
-		}
-	}
-	return true
-}
-
 func (f *Field) create(random *rand.Rand) {
 	offsets := nextRoomOffsets(f.sizes)
 
@@ -83,10 +61,7 @@ func (f *Field) create(random *rand.Rand) {
 		denoms[dim] = denom
 	}
 
-	roomClusters := make([]int, len(f.rooms))
-	for i, _ := range roomClusters {
-		roomClusters[i] = i
-	}
+	roomClusters := newClusters(len(f.rooms))
 
 	type wall struct {
 		roomIndex int
@@ -104,7 +79,7 @@ func (f *Field) create(random *rand.Rand) {
 	}
 	walls = walls[:len(walls):len(walls)]
 
-	for !allRoomsConnected(roomClusters) {
+	for !roomClusters.AllSame() {
 		dim := 0
 		index := 0
 		cluster := 0
@@ -117,12 +92,15 @@ func (f *Field) create(random *rand.Rand) {
 			index = w.roomIndex
 
 			nextRoomIndex := index - offsets[dim]
-			cluster = roomCluster(roomClusters, index)
-			nextRoomCluster = roomCluster(roomClusters, nextRoomIndex)
+			cluster = roomClusters.Get(index)
+			nextRoomCluster = roomClusters.Get(nextRoomIndex)
 
 			l := len(walls) - 1
 			walls[wallIndex] = walls[l]
 			walls = walls[:l:l]
+			if l == 0 {
+				panic("too many walls are broken")
+			}
 			if cluster == nextRoomCluster {
 				wallIndex++
 				wallIndex %= l
@@ -133,9 +111,9 @@ func (f *Field) create(random *rand.Rand) {
 
 		f.rooms[index].openWalls[dim] = true
 		if cluster < nextRoomCluster {
-			roomClusters[nextRoomCluster] = cluster
+			roomClusters.Set(nextRoomCluster, cluster)
 		} else {
-			roomClusters[cluster] = nextRoomCluster
+			roomClusters.Set(cluster, nextRoomCluster)
 		}
 	}
 }
@@ -201,7 +179,6 @@ func (f *Field) calcCosts() {
 	nextIndexes := []int{}
 	f.parentRooms[startIndex] = -1
 	for cost := 0; 0 < len(currentIndexes); cost++ {
-		nextIndexes = nextIndexes[:0]
 		for _, index := range currentIndexes {
 			f.costs[index] = cost
 			rooms, len := f.nextConnectedRooms(index)
@@ -222,6 +199,7 @@ func (f *Field) calcCosts() {
 		}
 		copy(currentIndexes, nextIndexes)
 		currentIndexes = currentIndexes[:len(nextIndexes)]
+		nextIndexes = nextIndexes[:0]
 	}
 }
 
@@ -377,7 +355,6 @@ func (f *Field) costToShortestPath() ([]int, []int) {
 		currentIndexes := []int{shortestPathIndex}
 		nextIndexes := []int{}
 		for cost := 0; 0 < len(currentIndexes); cost++ {
-			nextIndexes = nextIndexes[:0]
 			for _, index := range currentIndexes {
 				costToShortestPath[index] = cost
 				nearestRoomInShortestPath[index] = shortestPathIndex
@@ -398,6 +375,7 @@ func (f *Field) costToShortestPath() ([]int, []int) {
 			}
 			copy(currentIndexes, nextIndexes)
 			currentIndexes = currentIndexes[:len(nextIndexes)]
+			nextIndexes = nextIndexes[:0]
 		}
 	}
 	return costToShortestPath, nearestRoomInShortestPath
