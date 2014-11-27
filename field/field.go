@@ -60,7 +60,7 @@ func (f *Field) create(random *rand.Rand) {
 		denoms[dim] = denom
 	}
 
-	roomClusters := newClusters(len(f.rooms))
+	roomClusters := newClusters(int32(len(f.rooms)))
 
 	type wall struct {
 		roomIndex int
@@ -80,17 +80,17 @@ func (f *Field) create(random *rand.Rand) {
 
 	for !roomClusters.AllSame() {
 		dim := 0
-		index := 0
-		cluster := 0
-		nextRoomCluster := 0
+		index := int32(0)
+		cluster := int32(0)
+		nextRoomCluster := int32(0)
 
 		wallIndex := random.Intn(len(walls))
 		for {
 			w := walls[wallIndex]
 			dim = w.dimension
-			index = w.roomIndex
+			index = int32(w.roomIndex)
 
-			nextRoomIndex := index - f.offsets[dim]
+			nextRoomIndex := index - int32(f.offsets[dim])
 			cluster = roomClusters.Get(index)
 			nextRoomCluster = roomClusters.Get(nextRoomIndex)
 

@@ -1,24 +1,22 @@
 package field
 
 type clusters struct {
-	clusters []int
-	numZero  int
-	path     []int
+	clusters []int32
+	path     []int32
 }
 
-func newClusters(num int) *clusters {
+func newClusters(num int32) *clusters {
 	c := &clusters{
-		clusters: make([]int, num),
-		numZero:  1,
-		path:     make([]int, 0, 8),
+		clusters: make([]int32, num),
+		path:     make([]int32, 0, 8),
 	}
-	for i := 1; i < num; i++ {
+	for i := int32(1); i < num; i++ {
 		c.clusters[i] = i
 	}
 	return c
 }
 
-func (c *clusters) Get(i int) int {
+func (c *clusters) Get(i int32) int32 {
 	if c.clusters[i] == 0 {
 		return 0
 	}
@@ -45,13 +43,13 @@ func (c *clusters) Get(i int) int {
 	return cluster
 }
 
-func (c *clusters) Set(oldCluster, newCluster int) {
+func (c *clusters) Set(oldCluster, newCluster int32) {
 	c.clusters[oldCluster] = newCluster
 }
 
 func (c *clusters) AllSame() bool {
 	for i, _ := range c.clusters {
-		if c.Get(i) != 0 {
+		if c.Get(int32(i)) != 0 {
 			return false
 		}
 	}
