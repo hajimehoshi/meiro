@@ -83,7 +83,7 @@ func (f *Field) create(random *rand.Rand) {
 		index := i / maxDimension
 		dim := i % maxDimension
 		// Instead of roomPosition(f.sizes, index)[dim] == 0
-		if (index / denoms[dim]) % f.sizes[dim] == 0 {
+		if (index/denoms[dim])%f.sizes[dim] == 0 {
 			continue
 		}
 		walls = append(walls, wall{index, dim})
@@ -393,7 +393,7 @@ func (f *Field) createLoops(random *rand.Rand) {
 		a := costToShortestPath[deadEnd]
 		b := costToShortestPath[nextRoom]
 		c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
-		if c <= (a+b)/4 && 0 < (a+b)%3 {
+		if c <= (a+b)/4 && (a+b)%3 == 0 {
 			f.connectRooms(deadEnd, nextRoom)
 		}
 	}

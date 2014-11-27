@@ -19,7 +19,7 @@ func writeSvgLine(writer io.Writer, x1, y1, x2, y2 int) {
 	io.WriteString(writer, strconv.Itoa(x2))
 	io.WriteString(writer, `" y2="`)
 	io.WriteString(writer, strconv.Itoa(y2))
-	io.WriteString(writer, `" />` + "\n")
+	io.WriteString(writer, `" />`+"\n")
 }
 
 func writeSvgDashedLine(writer io.Writer, x1, y1, x2, y2 int) {
@@ -31,15 +31,15 @@ func writeSvgDashedLine(writer io.Writer, x1, y1, x2, y2 int) {
 	io.WriteString(writer, strconv.Itoa(x2))
 	io.WriteString(writer, `" y2="`)
 	io.WriteString(writer, strconv.Itoa(y2))
-	io.WriteString(writer, `" stroke-dasharray="2" stroke-opacity="0.3" />` + "\n")
+	io.WriteString(writer, `" stroke-dasharray="2" stroke-opacity="0.3" />`+"\n")
 }
 
 func writeSvgArrows(writer io.Writer) {
 	cx := svgRoomSize / 2
 	cy := svgRoomSize / 2
-	writeSvgLine(writer, cx, cy, cx, svgRoomSize - 1)
-	writeSvgLine(writer, 3, cy + 2, cx, svgRoomSize - 1)
-	writeSvgLine(writer, svgRoomSize - 3, cy + 2, cx, svgRoomSize - 1)
+	writeSvgLine(writer, cx, cy, cx, svgRoomSize-1)
+	writeSvgLine(writer, 3, cy+2, cx, svgRoomSize-1)
+	writeSvgLine(writer, svgRoomSize-3, cy+2, cx, svgRoomSize-1)
 }
 
 func (f *Field) svgFloorWidth() int {
@@ -64,14 +64,14 @@ func writeSvgUseArrow(writer io.Writer, x1, y1 int, rotate int) {
 	io.WriteString(writer, strconv.Itoa(cx))
 	io.WriteString(writer, `, `)
 	io.WriteString(writer, strconv.Itoa(cy))
-	io.WriteString(writer, `)" />` + "\n")
+	io.WriteString(writer, `)" />`+"\n")
 }
 
 func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 	offsetX := dim4*f.svgFloorWidth() + paddingX
 	offsetY := dim3*f.svgFloorHeight() + paddingY
 
-	io.WriteString(writer, `<g transform="translate(` + strconv.Itoa(offsetX) + `, ` + strconv.Itoa(offsetY) + `)">` + "\n")
+	io.WriteString(writer, `<g transform="translate(`+strconv.Itoa(offsetX)+`, `+strconv.Itoa(offsetY)+`)">`+"\n")
 
 	for dim2 := 0; dim2 < f.sizes[1]; dim2++ {
 		for dim1 := 0; dim1 < f.sizes[0]; dim1++ {
@@ -130,7 +130,7 @@ func (f *Field) WriteSVG(writer io.Writer) {
 	fmt.Fprintf(writer, `<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 %d %d" background-color="#fff">
-`, width, height);
+`, width, height)
 
 	fmt.Fprintln(writer, `<defs>`)
 	fmt.Fprintln(writer, `<symbol id="arrow" stroke-width="0.5">`)
@@ -148,19 +148,19 @@ func (f *Field) WriteSVG(writer io.Writer) {
 
 	fmt.Fprintln(writer, `<g stroke="red" stroke-width="1" stroke-linecap="round">`)
 	shortestPath := f.shortestPath()
-	for i := 0; i < len(shortestPath) - 1; i++ {
+	for i := 0; i < len(shortestPath)-1; i++ {
 		index := shortestPath[i]
 		nextIndex := shortestPath[i+1]
 		position := roomPosition(f.sizes, index)
 		nextPosition := roomPosition(f.sizes, nextIndex)
-		x1 := position[3] * f.svgFloorWidth() + position[0] * svgRoomSize +
-			svgRoomSize / 2 + paddingX
-		y1 := position[2] * f.svgFloorHeight() + position[1] * svgRoomSize +
-			svgRoomSize / 2 + paddingY
-		x2 := nextPosition[3] * f.svgFloorWidth() + nextPosition[0] * svgRoomSize +
-			svgRoomSize / 2 + paddingX
-		y2 := nextPosition[2] * f.svgFloorHeight() + nextPosition[1] * svgRoomSize +
-			svgRoomSize / 2 + paddingY
+		x1 := position[3]*f.svgFloorWidth() + position[0]*svgRoomSize +
+			svgRoomSize/2 + paddingX
+		y1 := position[2]*f.svgFloorHeight() + position[1]*svgRoomSize +
+			svgRoomSize/2 + paddingY
+		x2 := nextPosition[3]*f.svgFloorWidth() + nextPosition[0]*svgRoomSize +
+			svgRoomSize/2 + paddingX
+		y2 := nextPosition[2]*f.svgFloorHeight() + nextPosition[1]*svgRoomSize +
+			svgRoomSize/2 + paddingY
 		if position[2] == nextPosition[2] && position[3] == nextPosition[3] {
 			writeSvgLine(writer, x1, y1, x2, y2)
 		} else {
