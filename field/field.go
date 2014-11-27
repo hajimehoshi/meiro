@@ -17,6 +17,18 @@ type Room struct {
 	openWalls [maxDimension]bool
 }
 
+func (r *Room) OpenWall(dim int) bool {
+	return r.openWalls[dim]
+}
+
+func (r *Room) SetOpenWall(dim int, open bool) {
+	r.openWalls[dim] = open
+}
+
+func (r *Room) Block() {
+	r.openWalls = [maxDimension]bool{}
+}
+
 type Position [maxDimension]int
 
 type Field struct {
@@ -108,7 +120,7 @@ func (f *Field) create(random *rand.Rand) {
 			break
 		}
 
-		f.rooms[index].openWalls[dim] = true
+		f.rooms[index].SetOpenWall(dim, true)
 		if cluster < nextRoomCluster {
 			roomClusters.Set(nextRoomCluster, cluster)
 		} else {
@@ -141,7 +153,7 @@ func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
 	nextIndexesLen := 0
 	roomsLen := len(f.rooms)
 	for i := 0; i < maxDimension; i++ {
-		if f.rooms[index].openWalls[i] {
+		if f.rooms[index].OpenWall(i) {
 			nextIndexes[nextIndexesLen] = index - f.offsets[i]
 			nextIndexesLen++
 		}
@@ -149,7 +161,7 @@ func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
 		if roomsLen <= nextIndex {
 			continue
 		}
-		if !f.rooms[nextIndex].openWalls[i] {
+		if !f.rooms[nextIndex].OpenWall(i) {
 			continue
 		}
 		nextIndexes[nextIndexesLen] = nextIndex
@@ -237,7 +249,7 @@ func (f *Field) reduceDeadEnds(random *rand.Rand) {
 			}
 
 			// Block all walls
-			f.rooms[deadEndToRemove].openWalls = [maxDimension]bool{}
+			f.rooms[deadEndToRemove].Block()
 			position := roomPosition(f.sizes, deadEndToRemove)
 			for i := 0; i < maxDimension; i++ {
 				position := position
@@ -245,7 +257,7 @@ func (f *Field) reduceDeadEnds(random *rand.Rand) {
 				if f.sizes[i] <= position[i] {
 					continue
 				}
-				f.rooms[roomIndex(f.sizes, position)].openWalls[i] = false
+				f.rooms[roomIndex(f.sizes, position)].SetOpenWall(i, false)
 			}
 
 			deadEndToExtend := deadEnd
@@ -281,7 +293,7 @@ func (f *Field) connectRooms(index1, index2 int) bool {
 		if position != position2 {
 			continue
 		}
-		f.rooms[index1].openWalls[i] = true
+		f.rooms[index1].SetOpenWall(i, true)
 		return true
 	}
 	for i := 0; i < maxDimension; i++ {
@@ -290,7 +302,7 @@ func (f *Field) connectRooms(index1, index2 int) bool {
 		if position != position2 {
 			continue
 		}
-		f.rooms[index2].openWalls[i] = true
+		f.rooms[index2].SetOpenWall(i, true)
 		return true
 	}
 	return false
@@ -299,7 +311,7 @@ func (f *Field) connectRooms(index1, index2 int) bool {
 func (f *Field) oppositeRoomOfDeadEnd(index int) int {
 	position := roomPosition(f.sizes, index)
 	for i := 0; i < maxDimension; i++ {
-		if f.rooms[index].openWalls[i] {
+		if f.rooms[index].OpenWall(i) {
 			nextRoomPosition := position
 			nextRoomPosition[i]++
 			if f.sizes[i] <= nextRoomPosition[i] {
@@ -313,7 +325,7 @@ func (f *Field) oppositeRoomOfDeadEnd(index int) int {
 		if len(f.rooms) <= connectedRoomIndex {
 			continue
 		}
-		if !f.rooms[connectedRoomIndex].openWalls[i] {
+		if !f.rooms[connectedRoomIndex].OpenWall(i) {
 			continue
 		}
 		nextRoomPosition := position

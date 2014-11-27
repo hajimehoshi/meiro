@@ -79,27 +79,27 @@ func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 			room := f.rooms[roomIndex(f.sizes, coord)]
 			x1 := dim1 * svgRoomSize
 			y1 := dim2 * svgRoomSize
-			if !room.openWalls[0] {
+			if !room.OpenWall(0) {
 				x2 := dim1 * svgRoomSize
 				y2 := (dim2 + 1) * svgRoomSize
 				writeSvgLine(writer, x1, y1, x2, y2)
 			}
-			if !room.openWalls[1] {
+			if !room.OpenWall(1) {
 				x2 := (dim1 + 1) * svgRoomSize
 				y2 := dim2 * svgRoomSize
 				writeSvgLine(writer, x1, y1, x2, y2)
 			}
-			if room.openWalls[2] {
+			if room.OpenWall(2) {
 				writeSvgUseArrow(writer, x1, y1, 180)
 			}
-			if room.openWalls[3] {
+			if room.OpenWall(3) {
 				writeSvgUseArrow(writer, x1, y1, 90)
 			}
 
 			nextCoord := coord
 			nextCoord[2]++
 			if nextCoord[2] < f.sizes[2] {
-				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[2] {
+				if f.rooms[roomIndex(f.sizes, nextCoord)].OpenWall(2) {
 					writeSvgUseArrow(writer, x1, y1, 0)
 				}
 			}
@@ -107,7 +107,7 @@ func (f *Field) writeSvgFloor(writer io.Writer, dim3, dim4 int) {
 			nextCoord = coord
 			nextCoord[3]++
 			if nextCoord[3] < f.sizes[3] {
-				if f.rooms[roomIndex(f.sizes, nextCoord)].openWalls[3] {
+				if f.rooms[roomIndex(f.sizes, nextCoord)].OpenWall(3) {
 					writeSvgUseArrow(writer, x1, y1, 270)
 				}
 			}
