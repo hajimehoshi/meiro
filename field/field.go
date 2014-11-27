@@ -22,6 +22,7 @@ type Position [maxDimension]int
 type Field struct {
 	rooms       []Room
 	sizes       [maxDimension]int
+	offsets     [maxDimension]int
 	startIndex  int
 	endIndex    int
 	costs       []int
@@ -50,8 +51,6 @@ func roomIndex(sizes [maxDimension]int, coord Position) int {
 }
 
 func (f *Field) create(random *rand.Rand) {
-	offsets := nextRoomOffsets(f.sizes)
-
 	denoms := [maxDimension]int{}
 	for dim := 0; dim < maxDimension; dim++ {
 		denom := 1
@@ -91,7 +90,7 @@ func (f *Field) create(random *rand.Rand) {
 			dim = w.dimension
 			index = w.roomIndex
 
-			nextRoomIndex := index - offsets[dim]
+			nextRoomIndex := index - f.offsets[dim]
 			cluster = roomClusters.Get(index)
 			nextRoomCluster = roomClusters.Get(nextRoomIndex)
 
@@ -137,30 +136,16 @@ func (f *Field) nextRooms(index int) ([maxDimension * 2]int, int) {
 	return nextIndexes, len
 }
 
-func nextRoomOffsets(sizes [maxDimension]int) [maxDimension]int {
-	offsets := [maxDimension]int{}
-	for i := 0; i < maxDimension; i++ {
-		offset := 1
-		for j := 0; j < i; j++ {
-			offset *= sizes[j]
-		}
-		offsets[i] = offset
-	}
-	return offsets
-}
-
 func (f *Field) nextConnectedRooms(index int) ([maxDimension * 2]int, int) {
-	offsets := nextRoomOffsets(f.sizes)
-
 	nextIndexes := [maxDimension * 2]int{}
 	nextIndexesLen := 0
 	roomsLen := len(f.rooms)
 	for i := 0; i < maxDimension; i++ {
 		if f.rooms[index].openWalls[i] {
-			nextIndexes[nextIndexesLen] = index - offsets[i]
+			nextIndexes[nextIndexesLen] = index - f.offsets[i]
 			nextIndexesLen++
 		}
-		nextIndex := index + offsets[i]
+		nextIndex := index + f.offsets[i]
 		if roomsLen <= nextIndex {
 			continue
 		}
@@ -402,6 +387,14 @@ func (f *Field) createLoops(random *rand.Rand) {
 	}
 }
 
+func nextRoomOffsets(sizes [maxDimension]int) [maxDimension]int {
+	offsets := [maxDimension]int{1, 1, 1, 1}
+	for i := 1; i < maxDimension; i++ {
+		offsets[i] = offsets[i-1] * sizes[i-1]
+	}
+	return offsets
+}
+
 func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	f := &Field{
 		rooms:       make([]Room, size1*size2*size3*size4),
@@ -409,6 +402,7 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 		costs:       make([]int, size1*size2*size3*size4),
 		parentRooms: make([]int, size1*size2*size3*size4),
 	}
+	f.offsets = nextRoomOffsets(f.sizes)
 	f.endIndex = roomIndex(f.sizes, Position{size1 - 1, size2 - 1, size3 - 1, size4 - 1})
 
 	f.create(random)
