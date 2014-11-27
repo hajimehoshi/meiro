@@ -1,8 +1,9 @@
 package field
 
 type clusters struct {
-	clusters []int32
-	path     []int32
+	clusters       []int32
+	path           []int32
+	allSameChecked int
 }
 
 func newClusters(num int32) *clusters {
@@ -21,12 +22,6 @@ func (c *clusters) Get(i int32) int32 {
 		return 0
 	}
 	cluster := c.clusters[i]
-	if i == cluster {
-		return cluster
-	}
-	if cluster == c.clusters[cluster] {
-		return cluster
-	}
 	path := c.path[:0]
 	for {
 		cluster := c.clusters[i]
@@ -48,10 +43,11 @@ func (c *clusters) Set(oldCluster, newCluster int32) {
 }
 
 func (c *clusters) AllSame() bool {
-	for i, _ := range c.clusters {
+	for i := c.allSameChecked; i < len(c.clusters); i++ {
 		if c.Get(int32(i)) != 0 {
 			return false
 		}
+		c.allSameChecked++
 	}
 	return true
 }
