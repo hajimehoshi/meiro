@@ -4,10 +4,11 @@ import (
 	"github.com/hajimehoshi/meiro/field"
 	"math/rand"
 	"testing"
-	"time"
 )
 
 func BenchmarkCreate(b *testing.B) {
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
-	field.Create(random, 100, 100, 10, 10)
+	for i := 0; i < b.N; i++ {
+		random := rand.New(rand.NewSource(0))
+		field.Create(random, 100, 100, 10, 10)
+	}
 }
