@@ -393,7 +393,7 @@ func (f *Field) createLoops(random *rand.Rand) {
 		a := costToShortestPath[deadEnd]
 		b := costToShortestPath[nextRoom]
 		c := abs(nearestRoomInShortestPath[nextRoom] - nearestRoomInShortestPath[deadEnd])
-		if c <= (a+b)/4 && (a+b)%3 == 0 {
+		if c <= (a+b)/4 && (a+b)%7 <= 2 {
 			f.connectRooms(deadEnd, nextRoom)
 		}
 	}
