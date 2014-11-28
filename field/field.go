@@ -200,55 +200,37 @@ func (f *Field) calcCosts() {
 	}
 }
 
-func (f *Field) deadEnds() []int {
-	deadEnds := []int{}
-	for i, _ := range f.rooms {
-		if _, len := f.nextConnectedRooms(i); len == 1 {
-			deadEnds = append(deadEnds, i)
-		}
-	}
-	return deadEnds
-}
-
-func (f *Field) isSmallDeadEnd(index int) bool {
+func isDeadEndAndSmallEnd(f *Field, index int) (bool, bool) {
 	rooms, roomsLen := f.nextConnectedRooms(index)
 	if roomsLen != 1 {
-		return false
+		return false, false
 	}
 	_, roomsLen = f.nextConnectedRooms(rooms[0])
-	if roomsLen == 2 {
-		return false
-	}
-	return true
+	return true, 2 < roomsLen
 }
 
-func (f *Field) reduceDeadEnds(random *rand.Rand) {
-	for _, deadEnd := range f.deadEnds() {
+func (f *Field) reduceDeadEnds(deadEnds []int, random *rand.Rand) {
+	for _, deadEnd := range deadEnds {
 		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen == -1 {
 			continue
 		}
-		smallEnd := f.isSmallDeadEnd(deadEnd)
+		_, smallEnd := isDeadEndAndSmallEnd(f, deadEnd)
+		if !smallEnd {
+			continue
+		}
 		nextRooms, nextRoomsLen := f.nextRooms(deadEnd)
 		for _, nextRoom := range nextRooms[:nextRoomsLen] {
-			nextSmallEnd := f.isSmallDeadEnd(nextRoom)
-			if !nextSmallEnd {
-				if !smallEnd {
-					continue
-				}
-				if _, roomsLen := f.nextConnectedRooms(nextRoom); roomsLen != -1 {
-					continue
-				}
+			nextDeadEnd, nextSmallEnd := isDeadEndAndSmallEnd(f, nextRoom)
+			if !nextDeadEnd {
+				continue
 			}
 			deadEndToRemove := deadEnd
-			if smallEnd && nextSmallEnd {
+			if nextSmallEnd {
 				if random.Intn(2) == 0 {
 					deadEndToRemove = nextRoom
 				}
-			} else if nextSmallEnd {
-				deadEndToRemove = nextRoom
 			}
 
-			// Block all walls
 			f.rooms[deadEndToRemove].Block()
 			position := roomPosition(f.sizes, deadEndToRemove)
 			for i := 0; i < maxDimension; i++ {
@@ -378,10 +360,10 @@ func (f *Field) costToShortestPath() ([]int, []int) {
 	return costToShortestPath, nearestRoomInShortestPath
 }
 
-func (f *Field) createLoops(random *rand.Rand) {
+func (f *Field) createLoops(deadEnds []int, random *rand.Rand) {
 	costToShortestPath, nearestRoomInShortestPath := f.costToShortestPath()
 
-	for _, deadEnd := range f.deadEnds() {
+	for _, deadEnd := range deadEnds {
 		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen != 1 {
 			continue
 		}
@@ -407,6 +389,16 @@ func nextRoomOffsets(sizes [maxDimension]int) [maxDimension]int {
 	return offsets
 }
 
+func getDeadEnds(f *Field) []int {
+	deadEnds := []int{}
+	for i, _ := range f.rooms {
+		if _, len := f.nextConnectedRooms(i); len == 1 {
+			deadEnds = append(deadEnds, i)
+		}
+	}
+	return deadEnds
+}
+
 func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	f := &Field{
 		rooms:       make([]Room, size1*size2*size3*size4),
@@ -419,17 +411,19 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 
 	f.create(random)
 
-	deadEndsNum := len(f.deadEnds())
+	deadEnds := getDeadEnds(f)
+	deadEndsNum := len(deadEnds)
 	for {
-		f.reduceDeadEnds(random)
-		currentDeadEndNum := len(f.deadEnds())
+		f.reduceDeadEnds(deadEnds, random)
+		deadEnds = getDeadEnds(f)
+		currentDeadEndNum := len(deadEnds)
 		if deadEndsNum == currentDeadEndNum {
 			break
 		}
 		deadEndsNum = currentDeadEndNum
 	}
 	f.calcCosts()
-	f.createLoops(random)
+	f.createLoops(deadEnds, random)
 
 	return f
 }
