@@ -224,7 +224,7 @@ func (f *Field) isSmallDeadEnd(index int) bool {
 
 func (f *Field) reduceDeadEnds(random *rand.Rand) {
 	for _, deadEnd := range f.deadEnds() {
-		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen != -1 {
+		if _, roomsLen := f.nextConnectedRooms(deadEnd); roomsLen == -1 {
 			continue
 		}
 		smallEnd := f.isSmallDeadEnd(deadEnd)
