@@ -400,15 +400,16 @@ func getDeadEnds(f *Field) []int32 {
 	return deadEnds
 }
 
-func Create(random *rand.Rand, size1, size2, size3, size4 int32) *Field {
+func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
+	l := int32(size1 * size2 * size3 * size4)
 	f := &Field{
-		rooms:       make([]Room, size1*size2*size3*size4),
-		sizes:       [maxDimension]int32{size1, size2, size3, size4},
-		costs:       make([]int32, size1*size2*size3*size4),
-		parentRooms: make([]int32, size1*size2*size3*size4),
+		rooms:       make([]Room, l),
+		sizes:       [maxDimension]int32{int32(size1), int32(size2), int32(size3), int32(size4)},
+		costs:       make([]int32, l),
+		parentRooms: make([]int32, l),
 	}
 	f.offsets = nextRoomOffsets(f.sizes)
-	f.endIndex = roomIndex(f.sizes, Position{size1 - 1, size2 - 1, size3 - 1, size4 - 1})
+	f.endIndex = roomIndex(f.sizes, Position{int32(size1 - 1), int32(size2 - 1), int32(size3 - 1), int32(size4 - 1)})
 
 	f.create(random)
 
