@@ -11,10 +11,11 @@ func abs(i int32) int32 {
 	return i
 }
 
-const maxDimension = 4
+const MaxDimension = 4
 
+// TODO: Make it unexported
 type Room struct {
-	openWalls [maxDimension]bool
+	openWalls [MaxDimension]bool
 }
 
 func (r *Room) OpenWall(dim int32) bool {
@@ -26,45 +27,46 @@ func (r *Room) SetOpenWall(dim int32, open bool) {
 }
 
 func (r *Room) Block() {
-	r.openWalls = [maxDimension]bool{}
+	r.openWalls = [MaxDimension]bool{}
 }
 
-type Position [maxDimension]int32
+// TODO: Make it unexported
+type Position [MaxDimension]int32
 
 type Field struct {
 	rooms       []Room
-	sizes       [maxDimension]int32
-	offsets     [maxDimension]int32
+	sizes       [MaxDimension]int32
+	offsets     [MaxDimension]int32
 	startIndex  int32
 	endIndex    int32
 	costs       []int32
 	parentRooms []int32
 }
 
-func roomPosition(sizes [maxDimension]int32, index int32) Position {
-	coord := Position{}
-	coord[0] = index
+func roomPosition(sizes [MaxDimension]int32, index int32) Position {
+	position := Position{}
+	position[0] = index
 	for i := 1; i < len(sizes); i++ {
-		coord[i] = coord[i-1] / sizes[i-1]
+		position[i] = position[i-1] / sizes[i-1]
 	}
 	for i, size := range sizes {
-		coord[i] %= size
+		position[i] %= size
 	}
-	return coord
+	return position
 }
 
-func roomIndex(sizes [maxDimension]int32, coord Position) int32 {
-	index := coord[maxDimension-1]
+func roomIndex(sizes [MaxDimension]int32, position Position) int32 {
+	index := position[MaxDimension-1]
 	for i := len(sizes) - 2; 0 <= i; i-- {
 		index *= sizes[i]
-		index += coord[i]
+		index += position[i]
 	}
 	return index
 }
 
 func (f *Field) create(random *rand.Rand) {
-	denoms := [maxDimension]int32{}
-	for dim := int32(0); dim < maxDimension; dim++ {
+	denoms := [MaxDimension]int32{}
+	for dim := int32(0); dim < MaxDimension; dim++ {
 		denom := int32(1)
 		for i := int32(0); i < dim; i++ {
 			denom *= f.sizes[i]
@@ -78,10 +80,10 @@ func (f *Field) create(random *rand.Rand) {
 		roomIndex int32
 		dimension int32
 	}
-	walls := make([]wall, 0, len(f.rooms)*maxDimension)
+	walls := make([]wall, 0, len(f.rooms)*MaxDimension)
 	for i := int32(0); i < int32(cap(walls)); i++ {
-		index := i / maxDimension
-		dim := i % maxDimension
+		index := i / MaxDimension
+		dim := i % MaxDimension
 		// Instead of roomPosition(f.sizes, index)[dim] == 0
 		if (index/denoms[dim])%f.sizes[dim] == 0 {
 			continue
@@ -129,11 +131,11 @@ func (f *Field) create(random *rand.Rand) {
 	}
 }
 
-func (f *Field) nextRooms(index int32) ([maxDimension * 2]int32, int32) {
-	nextIndexes := [maxDimension * 2]int32{}
+func (f *Field) nextRooms(index int32) ([MaxDimension * 2]int32, int32) {
+	nextIndexes := [MaxDimension * 2]int32{}
 	position := roomPosition(f.sizes, index)
 	len := int32(0)
-	for i := 0; i < maxDimension; i++ {
+	for i := 0; i < MaxDimension; i++ {
 		if nextPosition := position; nextPosition[i] != 0 {
 			nextPosition[i]--
 			nextIndexes[len] = roomIndex(f.sizes, nextPosition)
@@ -148,11 +150,11 @@ func (f *Field) nextRooms(index int32) ([maxDimension * 2]int32, int32) {
 	return nextIndexes, len
 }
 
-func (f *Field) nextConnectedRooms(index int32) ([maxDimension * 2]int32, int32) {
-	nextIndexes := [maxDimension * 2]int32{}
+func (f *Field) nextConnectedRooms(index int32) ([MaxDimension * 2]int32, int32) {
+	nextIndexes := [MaxDimension * 2]int32{}
 	nextIndexesLen := int32(0)
 	roomsLen := int32(len(f.rooms))
-	for i :=int32(0); i < maxDimension; i++ {
+	for i :=int32(0); i < MaxDimension; i++ {
 		if f.rooms[index].OpenWall(i) {
 			nextIndexes[nextIndexesLen] = index - f.offsets[i]
 			nextIndexesLen++
@@ -233,7 +235,7 @@ func (f *Field) reduceDeadEnds(deadEnds []int32, random *rand.Rand) {
 
 			f.rooms[deadEndToRemove].Block()
 			position := roomPosition(f.sizes, deadEndToRemove)
-			for i := int32(0); i < maxDimension; i++ {
+			for i := int32(0); i < MaxDimension; i++ {
 				position := position
 				position[i]++
 				if f.sizes[i] <= position[i] {
@@ -269,7 +271,7 @@ func (f *Field) shortestPath() []int32 {
 func (f *Field) connectRooms(index1, index2 int32) bool {
 	position1 := roomPosition(f.sizes, index1)
 	position2 := roomPosition(f.sizes, index2)
-	for i := int32(0); i < maxDimension; i++ {
+	for i := int32(0); i < MaxDimension; i++ {
 		position := position1
 		position[i]--
 		if position != position2 {
@@ -278,7 +280,7 @@ func (f *Field) connectRooms(index1, index2 int32) bool {
 		f.rooms[index1].SetOpenWall(i, true)
 		return true
 	}
-	for i := int32(0); i < maxDimension; i++ {
+	for i := int32(0); i < MaxDimension; i++ {
 		position := position1
 		position[i]++
 		if position != position2 {
@@ -292,7 +294,7 @@ func (f *Field) connectRooms(index1, index2 int32) bool {
 
 func (f *Field) oppositeRoomOfDeadEnd(index int32) int32 {
 	position := roomPosition(f.sizes, index)
-	for i := int32(0); i < maxDimension; i++ {
+	for i := int32(0); i < MaxDimension; i++ {
 		if f.rooms[index].OpenWall(i) {
 			nextRoomPosition := position
 			nextRoomPosition[i]++
@@ -381,9 +383,9 @@ func (f *Field) createLoops(deadEnds []int32, random *rand.Rand) {
 	}
 }
 
-func nextRoomOffsets(sizes [maxDimension]int32) [maxDimension]int32 {
-	offsets := [maxDimension]int32{1, 1, 1, 1}
-	for i := int32(1); i < maxDimension; i++ {
+func nextRoomOffsets(sizes [MaxDimension]int32) [MaxDimension]int32 {
+	offsets := [MaxDimension]int32{1, 1, 1, 1}
+	for i := int32(1); i < MaxDimension; i++ {
 		offsets[i] = offsets[i-1] * sizes[i-1]
 	}
 	return offsets
@@ -404,8 +406,8 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	l := int32(size1 * size2 * size3 * size4)
 	f := &Field{
 		rooms:       make([]Room, l),
-		sizes:       [maxDimension]int32{int32(size1), int32(size2), int32(size3), int32(size4)},
-		costs:       make([]int32, l),
+		sizes:       [MaxDimension]int32{int32(size1), int32(size2), int32(size3), int32(size4)},
+		costs:       make([]int32, l), // TODO: Make this lazily?
 		parentRooms: make([]int32, l),
 	}
 	f.offsets = nextRoomOffsets(f.sizes)
@@ -428,4 +430,28 @@ func Create(random *rand.Rand, size1, size2, size3, size4 int) *Field {
 	f.createLoops(deadEnds, random)
 
 	return f
+}
+
+func (f *Field) IsWallOpen(position []int, dim int) (bool, bool) {
+	p := Position{int32(position[0]), int32(position[1]), int32(position[2]), int32(position[3])}
+	index := roomIndex(f.sizes, p)
+	openWall1 := f.rooms[index].openWalls[dim]
+	nextPosition := p
+	if nextPosition[dim] == f.sizes[dim] - 1 {
+		return openWall1, false
+	}
+	nextPosition[dim]++
+	nextIndex := roomIndex(f.sizes, nextPosition)
+	openWall2 := f.rooms[nextIndex].openWalls[dim]
+	return openWall1, openWall2
+}
+
+func (f *Field) StartPosition() []int {
+	position := roomPosition(f.sizes, f.startIndex)
+	return []int{int(position[0]), int(position[1]), int(position[2]), int(position[3])}
+}
+
+func (f *Field) EndPosition() []int {
+	position := roomPosition(f.sizes, f.endIndex)
+	return []int{int(position[0]), int(position[1]), int(position[2]), int(position[3])}
 }
